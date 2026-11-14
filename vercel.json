@@ -5,15 +5,14 @@
       "src": "idea_project/wsgi.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb",
-        "runtime": "python3.12"
+        "maxLambdaSize": "15mb"
       }
     },
     {
       "src": "build_files.sh",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "staticfiles"
+        "distDir": "staticfiles_build"
       }
     }
   ],
@@ -32,4 +31,3 @@
     }
   ]
 }
-

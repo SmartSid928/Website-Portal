@@ -17,6 +17,7 @@ media/submissions/*
 
 # Static collection
 staticfiles/
+staticfiles_build/
 
 # macOS
 .DS_Store
