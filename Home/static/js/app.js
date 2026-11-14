@@ -265,13 +265,26 @@ async function handleMarkAllRead() {
 
 let notificationPollTimer = null;
 function startNotificationPolling() {
-  if (notificationPollTimer) clearInterval(notificationPollTimer);
+  stopNotificationPolling();
+  if (!state.account) return;
+
   notificationPollTimer = setInterval(async () => {
-    if (!state.account) return;
+    if (!state.account) {
+      stopNotificationPolling();
+      return;
+    }
     try {
       const res = await apiFetch('/api/notifications/');
+      if (res.status === 401) {
+        stopNotificationPolling();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
+        if (data.authenticated === false) {
+          stopNotificationPolling();
+          return;
+        }
         updateNotificationBadge(data.unreadCount || 0);
         const dropdown = document.getElementById('notificationsDropdown');
         if (dropdown && !dropdown.classList.contains('hidden')) {
@@ -778,10 +791,10 @@ function messagesPage() {
 let chatPollTimer = null;
 function startChatPolling() {
   stopChatPolling();
-  if (state.page !== 'messages') return;
+  if (state.page !== 'messages' || !state.account) return;
 
   chatPollTimer = setInterval(async () => {
-    if (state.page !== 'messages') {
+    if (state.page !== 'messages' || !state.account) {
       stopChatPolling();
       return;
     }
@@ -789,8 +802,16 @@ function startChatPolling() {
     const lastId = currentList.length ? currentList[currentList.length - 1].id : 0;
     try {
       const res = await apiFetch(`/api/messages/?thread=${state.selectedThread}&since_id=${lastId}`);
+      if (res.status === 401) {
+        stopChatPolling();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
+        if (data.authenticated === false) {
+          stopChatPolling();
+          return;
+        }
         if (data.messages && data.messages.length) {
           const existingIds = new Set(currentList.map(m => m.id));
           const newItems = data.messages.filter(m => !existingIds.has(m.id));
@@ -1501,6 +1522,7 @@ document.getElementById("authForm").addEventListener("submit", async event => {
 });
 
 async function handleLogout() {
+  state.account = null;
   stopChatPolling();
   stopNotificationPolling();
   toggleNotificationsDropdown(false);
@@ -1509,7 +1531,6 @@ async function handleLogout() {
     await apiFetch('/api/auth/logout/', { method: 'POST' });
   } catch (e) {}
 
-  state.account = null;
   state.members = [];
   state.projects = [];
   state.queries = [];

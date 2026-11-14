@@ -9,12 +9,14 @@ env/
 ENV/
 
 # Database
-db.sqlite3
 db.sqlite3-journal
 
 # Media files
 media/submissions/*
 !media/submissions/.gitkeep
+
+# Static collection
+staticfiles/
 
 # macOS
 .DS_Store

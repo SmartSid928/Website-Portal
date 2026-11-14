@@ -731,7 +731,7 @@ def api_reply_query(request, query_id):
 def api_get_messages(request):
     """Fetches messages for a thread, with optional polling via since_id."""
     if not request.user.is_authenticated:
-        return JsonResponse({"error": "Unauthorized"}, status=401)
+        return JsonResponse({"messages": [], "authenticated": False}, status=200)
 
     thread = request.GET.get("thread", "team")
     since_id = request.GET.get("since_id")
@@ -812,7 +812,7 @@ def api_send_message(request):
 def api_get_notifications(request):
     """Returns user's notifications and unread count with smart dynamic alerts."""
     if not request.user.is_authenticated:
-        return JsonResponse({"error": "Unauthorized"}, status=401)
+        return JsonResponse({"notifications": [], "unreadCount": 0, "authenticated": False}, status=200)
 
     profile = _get_user_profile(request.user)
     items = []
