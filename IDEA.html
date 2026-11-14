@@ -204,6 +204,8 @@
     .project-info { flex: 1; min-width: 0; }
     .project-name { font-size: 11px; font-weight: 700; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .project-meta { color: var(--muted); font-size: 9px; }
+    .teacher-remark { margin-top: 12px; padding: 13px 15px; border: 1px solid var(--line); border-left: 4px solid var(--purple); border-radius: 9px; background: var(--purple-soft); color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.55; }
+    .teacher-remark strong { display: block; margin-bottom: 5px; color: var(--purple-dark); font-size: 12px; font-weight: 800; }
     .status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 5px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; }
     .status:before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
     .status.review { background: var(--orange-soft); color: #c7822d; }
@@ -311,6 +313,11 @@
     .auth-tabs button.active { background: white; color: var(--purple-dark); box-shadow: 0 2px 7px #282c490d; }
     .auth-error { min-height: 16px; color: var(--red); font-size: 10px; margin-top: 8px; }
     .auth-card .button-primary { width: 100%; margin-top: 10px; }
+    .password-field { position: relative; }
+    .password-field .field { padding-right: 44px; }
+    .password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
+    .password-toggle:hover { color: var(--purple-dark); background: var(--purple-soft); }
+    .password-toggle svg { width: 17px; height: 17px; }
     html[data-theme="ambient"] { color-scheme: light; --ink:#453f36; --muted:#6f6559; --line:#e3d8c9; --paper:#fffaf2; --canvas:#f4ecdf; --purple:#6f6038; --purple-dark:#594a28; --purple-soft:#f1ead9; --green:#356c55; --green-soft:#e4f0e6; --orange:#8a591e; --orange-soft:#f8ead8; }
     html[data-theme="night"] { color-scheme: dark; --ink:#e8eaf0; --muted:#a2a9b7; --line:#343c49; --paper:#1d2430; --canvas:#141a23; --purple:#a99cff; --purple-dark:#c1b8ff; --purple-soft:#302b47; --green:#6fc5a0; --green-soft:#20392f; --orange:#e0aa62; --orange-soft:#3a3022; --red:#e88989; }
     html[data-theme="night"] body, html[data-theme="ambient"] body { background: var(--canvas); color: var(--ink); }
@@ -434,7 +441,7 @@
         </div>
       </div>
       <label class="field-label" for="accountEmail">Email</label><input class="field" id="accountEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-      <label class="field-label" for="accountPassword">Password</label><input class="field" id="accountPassword" name="password" type="password" autocomplete="new-password" placeholder="Create a password" required>
+      <label class="field-label" for="accountPassword">Password</label><div class="password-field"><input class="field" id="accountPassword" name="password" type="password" autocomplete="new-password" placeholder="Create a password" required><button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false" title="Show password"><svg id="passwordEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
       <div class="auth-error" id="authError" role="alert"></div>
       <button class="button-primary" id="authSubmit" type="submit">Submit</button>
     </form>
@@ -521,7 +528,7 @@
     }
 
     function projectRow(project) {
-      return `<div class="project-row"><div class="project-icon ${project.color}">${icons.file}</div><div class="project-info"><div class="project-name">${escapeHtml(project.name)}</div><div class="project-meta">${escapeHtml(project.type)} · ${escapeHtml(project.date)}</div></div><span class="status ${statusClass(project.status)}">${escapeHtml(project.status)}</span></div>`;
+      return `<div class="project-row"><div class="project-icon ${project.color}">${icons.file}</div><div class="project-info"><div class="project-name">${escapeHtml(project.name)}</div><div class="project-meta">${escapeHtml(project.type)} · ${escapeHtml(project.date)}</div>${project.remark ? `<div class="teacher-remark"><strong>Teacher remark</strong>${escapeHtml(project.remark)}</div>` : ""}</div><span class="status ${statusClass(project.status)}">${escapeHtml(project.status)}</span></div>`;
     }
 
     function membersList() {
@@ -622,7 +629,7 @@
 
     function projectsPage() {
       if (state.role === "teacher") return teacherProjectsPage();
-      return `<div class="page-heading"><div><p class="eyebrow">YOUR WORK</p><h1>My projects</h1><p class="page-subtitle">Keep track of your team’s submissions and teacher feedback.</p></div><button class="button-primary" data-action="upload">${icons.upload} Upload a project</button></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">All projects</h2><p class="panel-description">${state.projects.length} projects</p></div><span class="term-pill">Workspace</span></div><div class="projects-list">${state.projects.length ? state.projects.map((p, i) => `${projectRow(p)}<div class="project-attach-action"><button class="button-secondary" data-attach-file="${i}">${p.fileName ? "Replace attached file" : "Attach project file"}</button></div>${p.remark ? `<div style="margin:-4px 0 10px 51px;color:#717890;font-size:10px">Teacher remark: ${escapeHtml(p.remark)}</div>` : ""}`).join("") : '<div class="empty-state">No projects yet. Upload your team’s first project to get started.</div>'}</div></section>`;
+      return `<div class="page-heading"><div><p class="eyebrow">YOUR WORK</p><h1>My projects</h1><p class="page-subtitle">Keep track of your team’s submissions and teacher feedback.</p></div><button class="button-primary" data-action="upload">${icons.upload} Upload a project</button></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">All projects</h2><p class="panel-description">${state.projects.length} projects</p></div><span class="term-pill">Workspace</span></div><div class="projects-list">${state.projects.length ? state.projects.map((p, i) => `${projectRow(p)}<div class="project-attach-action"><button class="button-secondary" data-attach-file="${i}">${p.fileName ? "Replace attached file" : "Attach project file"}</button></div>`).join("") : '<div class="empty-state">No projects yet. Upload your team’s first project to get started.</div>'}</div></section>`;
     }
 
     function teamPage() {
@@ -994,6 +1001,17 @@
     applyTheme(localStorage.getItem("ideaTheme") || "light");
 
     let authMode = "signup";
+    function setPasswordVisibility(show) {
+      const input = document.getElementById("accountPassword");
+      const button = document.getElementById("passwordToggle");
+      input.type = show ? "text" : "password";
+      button.setAttribute("aria-pressed", String(show));
+      button.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      button.title = show ? "Hide password" : "Show password";
+      document.getElementById("passwordEye").innerHTML = show
+        ? '<path d="M3 3 21 21"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.2 0 9.5 6 9.5 6a16.5 16.5 0 0 1-3 3.6M6.2 6.3C3.8 8 2.5 12 2.5 12s3.3 6 9.5 6c1.2 0 2.3-.2 3.2-.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'
+        : '<path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/>';
+    }
     function setAuthMode(mode) {
       authMode = mode;
       const signup = mode === "signup";
@@ -1001,6 +1019,9 @@
       document.getElementById("accountName").required = signup;
       updateSignupFields();
       document.getElementById("accountPassword").autocomplete = signup ? "new-password" : "current-password";
+      document.getElementById("accountPassword").type = "password";
+      document.getElementById("accountPassword").placeholder = signup ? "Create a password" : "Enter your password";
+      setPasswordVisibility(false);
       document.getElementById("authTitle").textContent = signup ? "Start with a fresh account" : "Log in to your account";
       document.getElementById("authCopy").textContent = signup ? "Enter your own details to set up your student or teacher workspace." : "Enter the email and password you used when you created your account.";
       document.getElementById("authSubmit").textContent = signup ? "Submit" : "Log in";
@@ -1033,6 +1054,7 @@
     }
     document.getElementById("signupTab").addEventListener("click", () => setAuthMode("signup"));
     document.getElementById("loginTab").addEventListener("click", () => setAuthMode("login"));
+    document.getElementById("passwordToggle").addEventListener("click", () => setPasswordVisibility(document.getElementById("accountPassword").type === "password"));
     document.getElementById("accountRole").addEventListener("change", updatePostOptions);
     updatePostOptions();
     document.getElementById("authForm").addEventListener("submit", async event => {
