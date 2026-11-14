@@ -289,7 +289,13 @@ def api_workspace_data(request):
         })
 
     # Unread notifications count
-    unread_notifs = ActivityNotification.objects.filter(user=request.user, is_read=False).count()
+    if profile.role == "teacher":
+        pending_subs_count = ProjectSubmission.objects.filter(status="In review").count()
+        unanswered_q_count = Query.objects.filter(answered=False).count()
+        unread_db_notifs = ActivityNotification.objects.filter(user=request.user, is_read=False).count()
+        unread_notifs = pending_subs_count + unanswered_q_count + unread_db_notifs
+    else:
+        unread_notifs = ActivityNotification.objects.filter(user=request.user, is_read=False).count()
 
     if profile.role == "teacher":
         # Highly optimized query with joins and prefetch (eliminates N+1 queries)
@@ -804,22 +810,69 @@ def api_send_message(request):
 
 @require_http_methods(["GET"])
 def api_get_notifications(request):
-    """Returns user's recent notifications and unread count."""
+    """Returns user's notifications and unread count with smart dynamic alerts."""
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
-    notifications = ActivityNotification.objects.filter(user=request.user).order_by("-created_at")[:25]
-    unread_count = ActivityNotification.objects.filter(user=request.user, is_read=False).count()
+    profile = _get_user_profile(request.user)
+    items = []
+    unread_count = 0
 
-    items = [{
-        "id": n.id,
-        "title": n.title,
-        "message": n.message,
-        "type": n.notification_type,
-        "linkPage": n.link_page,
-        "isRead": n.is_read,
-        "time": n.created_at.strftime("%b %d, %I:%M %p"),
-    } for n in notifications]
+    if profile and profile.role == "teacher":
+        # 1. Submissions awaiting teacher review
+        pending_subs = ProjectSubmission.objects.filter(status="In review").select_related("owner", "team").order_by("-submitted_at")[:15]
+        for sub in pending_subs:
+            owner_name = sub.owner.first_name or sub.owner.username if sub.owner else "Student"
+            team_label = sub.team.name if sub.team else "Student Team"
+            items.append({
+                "id": f"sub-{sub.id}",
+                "rawId": sub.id,
+                "title": f"Submission Awaiting Review",
+                "message": f"'{sub.title}' by {owner_name} ({team_label}) is awaiting your evaluation.",
+                "type": "submission",
+                "linkPage": "projects",
+                "isRead": False,
+                "time": _format_date(sub.submitted_at) or "Awaiting review",
+                "actionType": "review",
+                "actionLabel": "Review Project",
+            })
+            unread_count += 1
+
+        # 2. Student questions needing teacher reply
+        unanswered_queries = Query.objects.filter(answered=False).select_related("asked_by").order_by("-created_at")[:15]
+        for q in unanswered_queries:
+            student_name = q.asked_by.first_name or q.asked_by.username if q.asked_by else "Student"
+            items.append({
+                "id": f"query-{q.id}",
+                "rawId": q.id,
+                "title": f"Question Needs Reply",
+                "message": f"{student_name}: '{q.title}' - {q.details[:60] if q.details else 'Student is waiting for guidance'}",
+                "type": "query",
+                "linkPage": "queries",
+                "isRead": False,
+                "time": _format_date(q.created_at) or "Needs reply",
+                "actionType": "reply",
+                "actionLabel": "Reply Now",
+            })
+            unread_count += 1
+
+    # 3. Explicit Activity Notifications for the user
+    user_notifs = ActivityNotification.objects.filter(user=request.user).order_by("-created_at")[:20]
+    for n in user_notifs:
+        items.append({
+            "id": f"notif-{n.id}",
+            "rawId": n.id,
+            "title": n.title,
+            "message": n.message,
+            "type": n.notification_type,
+            "linkPage": n.link_page or "overview",
+            "isRead": n.is_read,
+            "time": n.created_at.strftime("%b %d, %I:%M %p"),
+            "actionType": "navigate",
+            "actionLabel": "View",
+        })
+        if not n.is_read:
+            unread_count += 1
 
     return JsonResponse({
         "success": True,

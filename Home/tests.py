@@ -268,5 +268,9 @@ class IdeaAppTests(TestCase):
         mark_res = self.client.post("/api/notifications/read/", data=json.dumps({}), content_type="application/json")
         self.assertEqual(mark_res.status_code, 200)
 
+        # Teacher reviews the pending project
+        sub_item = next(n for n in data["notifications"] if n.get("actionType") == "review")
+        self.client.post(f"/api/projects/{sub_item['rawId']}/review/", data=json.dumps({"status": "Approved"}), content_type="application/json")
+
         notif_res_after = self.client.get("/api/notifications/")
         self.assertEqual(notif_res_after.json()["unreadCount"], 0)

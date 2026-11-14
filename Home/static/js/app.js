@@ -114,13 +114,183 @@ function queriesList() {
   </div>`).join("");
 }
 
-function updateNotificationDot(unreadCount) {
-  state.unreadNotifications = unreadCount;
-  const dot = document.querySelector('.notification-dot');
-  if (dot) {
-    dot.style.display = unreadCount > 0 ? 'block' : 'none';
+// ----------------- Notification Popover & Badge -----------------
+let currentNotifFilter = 'all';
+let cachedNotifications = [];
+
+function updateNotificationBadge(unreadCount) {
+  state.unreadNotifications = Number(unreadCount) || 0;
+  const badge = document.getElementById('notificationBadge');
+  const badgeCount = document.getElementById('notifBadgeCount');
+
+  if (badge) {
+    if (state.unreadNotifications > 0) {
+      badge.textContent = state.unreadNotifications > 99 ? '99+' : state.unreadNotifications;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  if (badgeCount) {
+    badgeCount.textContent = state.unreadNotifications > 0 ? `${state.unreadNotifications} New` : '0 New';
   }
 }
+
+function toggleNotificationsDropdown(open) {
+  const dropdown = document.getElementById('notificationsDropdown');
+  const btn = document.getElementById('notificationButton');
+  if (!dropdown) return;
+
+  const shouldOpen = open !== undefined ? open : dropdown.classList.contains('hidden');
+  if (shouldOpen) {
+    dropdown.classList.remove('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    loadAndRenderNotifications();
+  } else {
+    dropdown.classList.add('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+async function loadAndRenderNotifications() {
+  const listEl = document.getElementById('notificationsList');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div class="empty-state" style="padding:28px 16px;">Loading notifications...</div>';
+
+  try {
+    const res = await apiFetch('/api/notifications/');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    cachedNotifications = data.notifications || [];
+    updateNotificationBadge(data.unreadCount || 0);
+    renderNotificationsList();
+  } catch (err) {
+    listEl.innerHTML = '<div class="empty-state" style="padding:28px 16px;color:#df696c;">Unable to load notifications. Please try again.</div>';
+  }
+}
+
+function renderNotificationsList() {
+  const listEl = document.getElementById('notificationsList');
+  if (!listEl) return;
+
+  const filtered = cachedNotifications.filter(n => {
+    if (currentNotifFilter === 'all') return true;
+    if (currentNotifFilter === 'submission') return n.type === 'submission';
+    if (currentNotifFilter === 'query') return n.type === 'query';
+    return true;
+  });
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty-state" style="padding:32px 16px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:6px;color:var(--green);">✓</div>
+      <strong style="color:var(--ink);">All caught up!</strong>
+      <p style="margin:4px 0 0;font-size:11px;color:var(--muted);">No ${currentNotifFilter === 'all' ? 'notifications' : currentNotifFilter + ' items'} right now.</p>
+    </div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(item => {
+    const isUnread = !item.isRead;
+    const iconClass = item.type === 'submission' ? 'orange' : (item.type === 'query' ? 'green' : 'blue');
+    const iconSvg = item.type === 'submission' ? icons.folder : (item.type === 'query' ? icons.send : icons.check);
+
+    return `
+      <div class="notif-item ${isUnread ? 'unread' : ''}" data-notif-id="${item.id}" data-action-type="${item.actionType || ''}" data-raw-id="${item.rawId || ''}" data-link-page="${item.linkPage || ''}">
+        <div class="notif-item-icon ${iconClass}">
+          ${iconSvg}
+        </div>
+        <div class="notif-item-content">
+          <div class="notif-item-top">
+            <span class="notif-item-title">${escapeHtml(item.title)}</span>
+            <span class="notif-item-time">${escapeHtml(item.time)}</span>
+          </div>
+          <p class="notif-item-msg">${escapeHtml(item.message)}</p>
+          ${item.actionLabel ? `<span class="notif-action-tag">${escapeHtml(item.actionLabel)} &rarr;</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function handleNotificationClick(notifEl) {
+  const actionType = notifEl.dataset.actionType;
+  const rawId = Number(notifEl.dataset.rawId);
+  const linkPage = notifEl.dataset.linkPage;
+
+  toggleNotificationsDropdown(false);
+
+  // If review action for teacher
+  if (actionType === 'review' && rawId) {
+    state.page = 'projects';
+    render();
+    const submissions = getStudentSubmissions();
+    const idx = submissions.findIndex(p => p.id === rawId);
+    if (idx !== -1) {
+      setTimeout(() => reviewModal(idx), 80);
+    }
+    return;
+  }
+
+  // If reply action for teacher
+  if (actionType === 'reply' && rawId) {
+    state.page = 'overview';
+    render();
+    const idx = state.queries.findIndex(q => q.id === rawId);
+    if (idx !== -1) {
+      setTimeout(() => replyModal(idx), 80);
+    }
+    return;
+  }
+
+  // Otherwise navigate to linked page
+  if (linkPage) {
+    state.page = linkPage;
+    render();
+  }
+}
+
+async function handleMarkAllRead() {
+  try {
+    await apiFetch('/api/notifications/read/', { method: 'POST', body: JSON.stringify({}) });
+    cachedNotifications.forEach(n => { n.isRead = true; });
+    updateNotificationBadge(0);
+    renderNotificationsList();
+    showToast("Notifications marked as read.");
+  } catch (err) {
+    showToast("Error updating notifications.");
+  }
+}
+
+let notificationPollTimer = null;
+function startNotificationPolling() {
+  if (notificationPollTimer) clearInterval(notificationPollTimer);
+  notificationPollTimer = setInterval(async () => {
+    if (!state.account) return;
+    try {
+      const res = await apiFetch('/api/notifications/');
+      if (res.ok) {
+        const data = await res.json();
+        updateNotificationBadge(data.unreadCount || 0);
+        const dropdown = document.getElementById('notificationsDropdown');
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+          cachedNotifications = data.notifications || [];
+          renderNotificationsList();
+        }
+      }
+    } catch (e) {}
+  }, 15000);
+}
+
+function stopNotificationPolling() {
+  if (notificationPollTimer) {
+    clearInterval(notificationPollTimer);
+    notificationPollTimer = null;
+  }
+}
+
+// ----------------- Page Views -----------------
 
 function studentOverview() {
   return `<div class="page-heading">
@@ -460,7 +630,67 @@ function teamPage() {
   </section>`;
 }
 
+function teacherQueriesRows(filter = "all") {
+  const rows = state.queries
+    .map((query, index) => ({ query, index }))
+    .filter(row => {
+      if (filter === "unanswered") return !row.query.answered;
+      if (filter === "answered") return row.query.answered;
+      return true;
+    });
+
+  if (!rows.length) {
+    return `<div class="empty-state">${state.queries.length ? "No student questions match this filter." : "No student questions yet. Questions submitted by student teams will appear here."}</div>`;
+  }
+
+  return rows.map(({ query, index }) => `
+    <div class="query-item" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0;">
+      <div style="display:flex;gap:10px;min-width:0;flex:1;">
+        <span class="query-bullet ${query.answered ? "answered" : ""}"></span>
+        <div class="query-copy">
+          <div class="query-title" style="font-size:12px;font-weight:600;">${escapeHtml(query.title)}</div>
+          <div class="query-meta">${query.answered ? "Answered" : "Needs a reply"} · ${escapeHtml(query.meta || "")}</div>
+          ${query.details ? `<div style="margin-top:5px;color:#4b5563;font-size:11px;line-height:1.45;">${escapeHtml(query.details)}</div>` : ''}
+          ${query.response ? `<div style="margin-top:7px;color:#1e7e59;background:#eefbf5;border:1px solid #c7f0db;padding:7px 11px;border-radius:6px;font-size:11px;line-height:1.45;"><strong>Your reply:</strong> ${escapeHtml(query.response)}</div>` : ''}
+        </div>
+      </div>
+      <button class="button-secondary" data-reply="${index}" style="font-size:11px;padding:6px 12px;white-space:nowrap;height:fit-content;margin-top:2px;">${query.answered ? "Edit reply" : "Reply"}</button>
+    </div>
+  `).join("");
+}
+
+function teacherQueriesPage() {
+  const unansweredCount = state.queries.filter(q => !q.answered).length;
+  return `<div class="page-heading">
+    <div>
+      <p class="eyebrow">STUDENT INQUIRIES</p>
+      <h1>Student questions</h1>
+      <p class="page-subtitle">Review questions submitted by student project teams and provide guidance.</p>
+    </div>
+  </div>
+  <section class="panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Student question inbox</h2>
+        <p class="panel-description">${state.queries.length} ${state.queries.length === 1 ? "question" : "questions"} total · ${unansweredCount} awaiting reply</p>
+      </div>
+      <div class="toolbar">
+        <select class="select-filter" id="teacherQueryFilter" aria-label="Filter student questions">
+          <option value="all">All questions</option>
+          <option value="unanswered">Needs a reply</option>
+          <option value="answered">Answered</option>
+        </select>
+      </div>
+    </div>
+    <div class="query-list" id="teacherQueryList">
+      ${teacherQueriesRows()}
+    </div>
+  </section>`;
+}
+
 function queriesPage() {
+  if (state.role === "teacher") return teacherQueriesPage();
+
   return `<div class="page-heading">
     <div>
       <p class="eyebrow">ASK YOUR TEACHER</p>
@@ -620,13 +850,21 @@ function render() {
   const projectNavSpan = document.querySelector('[data-page="projects"] span');
   if (projectNavSpan) projectNavSpan.textContent = state.role === "teacher" ? "Student projects" : "My projects";
 
+  const queryNavSpan = document.querySelector('[data-page="queries"] span');
+  if (queryNavSpan) queryNavSpan.textContent = state.role === "teacher" ? "Student questions" : "Queries";
+
   const pCountEl = document.querySelector('[data-count="projects"]');
   if (pCountEl) pCountEl.textContent = projectCount;
 
   const qCountEl = document.querySelector('[data-count="queries"]');
-  if (qCountEl) qCountEl.textContent = state.queries.length;
+  if (qCountEl) {
+    const count = state.role === "teacher"
+      ? state.queries.filter(q => !q.answered).length
+      : state.queries.length;
+    qCountEl.textContent = count;
+  }
 
-  updateNotificationDot(state.unreadNotifications);
+  updateNotificationBadge(state.unreadNotifications);
 
   const views = {
     overview: () => state.role === "teacher" ? teacherOverview() : studentOverview(),
@@ -655,6 +893,14 @@ function render() {
   if (projectFilter) {
     projectFilter.addEventListener("change", () => {
       document.getElementById("teacherProjects").innerHTML = teacherProjectRows(projectFilter.value);
+    });
+  }
+
+  const teacherQueryFilter = document.getElementById("teacherQueryFilter");
+  if (teacherQueryFilter) {
+    teacherQueryFilter.addEventListener("change", () => {
+      const listEl = document.getElementById("teacherQueryList");
+      if (listEl) listEl.innerHTML = teacherQueriesRows(teacherQueryFilter.value);
     });
   }
 
@@ -713,44 +959,6 @@ function showModal(title, subtitle, body, submitLabel, onSubmit) {
 
   const firstField = host.querySelector("input:not([type=file]), textarea");
   if (firstField) firstField.focus();
-}
-
-async function showNotificationsModal() {
-  try {
-    const res = await apiFetch('/api/notifications/');
-    const data = await res.json();
-    const list = data.notifications || [];
-
-    let itemsHtml = '';
-    if (!list.length) {
-      itemsHtml = '<div class="empty-state">No notifications yet. You’re all caught up!</div>';
-    } else {
-      itemsHtml = '<div class="notification-list" style="display:grid;gap:10px;max-height:360px;overflow-y:auto;padding-right:4px;">' +
-        list.map(n => `
-          <div class="notification-item" style="padding:10px 12px;border-radius:10px;background:${n.isRead ? '#f8f9fa' : '#f0efff'};border:1px solid ${n.isRead ? '#eceef4' : '#d8d6f7'};">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <strong style="font-size:12px;color:${n.isRead ? '#1d2340' : '#554bd0'}">${escapeHtml(n.title)}</strong>
-              <span style="font-size:10px;color:#70768b">${escapeHtml(n.time)}</span>
-            </div>
-            <p style="margin:0;font-size:11px;color:#4b5563;line-height:1.4">${escapeHtml(n.message)}</p>
-          </div>
-        `).join('') + '</div>';
-    }
-
-    showModal(
-      "Notifications",
-      "Recent activity across your projects and workspace",
-      itemsHtml,
-      "Close",
-      () => closeModal()
-    );
-
-    // Mark as read in background
-    await apiFetch('/api/notifications/read/', { method: 'POST' });
-    updateNotificationDot(0);
-  } catch (err) {
-    showToast("Error loading notifications.");
-  }
 }
 
 function uploadModal() {
@@ -906,6 +1114,10 @@ function addMemberModal() {
 }
 
 function questionModal() {
+  if (state.role === "teacher") {
+    showToast("Questions can only be submitted by student teams.");
+    return;
+  }
   showModal(
     "Ask your teacher",
     "Your question will be saved and sent to your teacher.",
@@ -1050,7 +1262,10 @@ async function sendMessage(event) {
   }
 }
 
+// ----------------- Global Click and Event Listeners -----------------
+
 document.addEventListener("click", event => {
+  // Navigation
   const pageButton = event.target.closest("[data-page]");
   if (pageButton) {
     state.page = pageButton.dataset.page;
@@ -1058,18 +1273,67 @@ document.addEventListener("click", event => {
     return;
   }
 
+  // Outside click on notifications dropdown
+  const dropdown = document.getElementById("notificationsDropdown");
+  const notifBtn = document.getElementById("notificationButton");
+  if (dropdown && !dropdown.classList.contains("hidden")) {
+    if (!dropdown.contains(event.target) && (!notifBtn || !notifBtn.contains(event.target))) {
+      toggleNotificationsDropdown(false);
+    }
+  }
+
+  // Notification items click
+  const notifItem = event.target.closest(".notif-item");
+  if (notifItem) {
+    handleNotificationClick(notifItem);
+    return;
+  }
+
+  // Notification filter tab click
+  const notifTab = event.target.closest("[data-notif-filter]");
+  if (notifTab) {
+    currentNotifFilter = notifTab.dataset.notifFilter;
+    document.querySelectorAll("[data-notif-filter]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.notifFilter === currentNotifFilter);
+    });
+    renderNotificationsList();
+    return;
+  }
+
+  // Mark all read button click
+  if (event.target.closest("#markAllReadBtn")) {
+    handleMarkAllRead();
+    return;
+  }
+
+  // General actions
   const actionButton = event.target.closest("[data-action]");
   if (actionButton) {
     const action = actionButton.dataset.action;
     if (action === "upload") uploadModal();
     else if (action === "add-member") addMemberModal();
-    else if (action === "ask-question") questionModal();
+    else if (action === "ask-question") {
+      if (state.role === "teacher") {
+        showToast("Questions can only be submitted by student teams.");
+      } else {
+        questionModal();
+      }
+    }
     else if (action === "team") { state.page = "team"; render(); }
-    else if (action === "review-all") { state.page = "projects"; render(); }
-    else if (action === "teacher-queries") showToast("Your student question inbox is up to date.");
+    else if (action === "review-all") {
+      toggleNotificationsDropdown(false);
+      state.page = "projects";
+      render();
+    }
+    else if (action === "teacher-queries") {
+      state.page = "queries";
+      render();
+    }
     else if (action === "help") showToast("Help center: ask your teacher or visit class resources.");
     else if (action === "logout") { handleLogout(); }
-    else if (action === "notifications") { showNotificationsModal(); }
+    else if (action === "notifications" || action === "toggle-notifications") {
+      toggleNotificationsDropdown();
+    }
     return;
   }
 
@@ -1105,6 +1369,13 @@ document.addEventListener("click", event => {
 
   const replyButton = event.target.closest("[data-reply]");
   if (replyButton) { replyModal(Number(replyButton.dataset.reply)); }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeModal();
+    toggleNotificationsDropdown(false);
+  }
 });
 
 function getInitials(name) {
@@ -1231,6 +1502,9 @@ document.getElementById("authForm").addEventListener("submit", async event => {
 
 async function handleLogout() {
   stopChatPolling();
+  stopNotificationPolling();
+  toggleNotificationsDropdown(false);
+
   try {
     await apiFetch('/api/auth/logout/', { method: 'POST' });
   } catch (e) {}
@@ -1271,6 +1545,8 @@ async function loadWorkspace() {
     state.unreadNotifications = data.account?.unreadNotifications || 0;
 
     render();
+    updateNotificationBadge(state.unreadNotifications);
+    startNotificationPolling();
   } catch (err) {
     console.error("Error loading workspace from Django:", err);
   }
