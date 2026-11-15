@@ -36,13 +36,17 @@ def validate_uploaded_file(uploaded_file):
     """Validates file extension and size, and sanitizes filename."""
     if not uploaded_file:
         return True, None
-    if uploaded_file.size > MAX_FILE_SIZE:
+    file_name = getattr(uploaded_file, 'name', '') or ''
+    file_size = getattr(uploaded_file, 'size', 0)
+    if not file_name or file_size == 0:
+        return True, None
+    if file_size > MAX_FILE_SIZE:
         return False, "File exceeds maximum size of 30 MB."
-    _, ext = os.path.splitext(uploaded_file.name.lower())
+    _, ext = os.path.splitext(file_name.lower())
     if ext not in ALLOWED_EXTENSIONS:
         return False, f"File format '{ext}' is not permitted. Please upload a PDF, document, archive, or image."
     # Sanitize filename
-    clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(uploaded_file.name))
+    clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(file_name))
     uploaded_file.name = clean_name
     return True, None
 
@@ -402,6 +406,8 @@ def api_upload_project(request):
     project_type = str(request.POST.get("type") or "Project submission").strip()
     note = str(request.POST.get("note") or "").strip()
     uploaded_file = request.FILES.get("file")
+    if uploaded_file and (not getattr(uploaded_file, 'name', '') or getattr(uploaded_file, 'size', 0) == 0):
+        uploaded_file = None
 
     if not title:
         return JsonResponse({"success": False, "error": "Project title is required."}, status=400)
@@ -456,7 +462,7 @@ def api_attach_project_file(request, project_id):
 
     sub = get_object_or_404(ProjectSubmission, id=project_id, owner=request.user)
     uploaded_file = request.FILES.get("file")
-    if not uploaded_file:
+    if not uploaded_file or not getattr(uploaded_file, 'name', '') or getattr(uploaded_file, 'size', 0) == 0:
         return JsonResponse({"success": False, "error": "No file provided."}, status=400)
 
     valid, err_msg = validate_uploaded_file(uploaded_file)
@@ -507,7 +513,7 @@ def api_download_file(request, project_id):
             filename=sub.file_name or os.path.basename(sub.file.name)
         )
         return response
-    except FileNotFoundError:
+    except Exception:
         raise Http404("File not found on server.")
 
 

@@ -106,6 +106,40 @@ class IdeaAppTests(TestCase):
         self.assertTrue(data2["success"])
         self.assertEqual(data2["project"]["fileName"], "updated_spec.pdf")
 
+    def test_project_upload_without_file(self):
+        self._create_student()
+
+        # Upload without providing any file
+        res = self.client.post("/api/projects/upload/", {
+            "title": "Conceptual AI Design",
+            "type": "Research documentation",
+            "note": "Documenting research findings before attaching PDF."
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["project"]["name"], "Conceptual AI Design")
+        self.assertEqual(data["project"]["fileName"], "")
+        self.assertEqual(data["project"]["fileUrl"], "")
+
+    def test_project_upload_with_empty_file(self):
+        self._create_student()
+
+        # 0-byte file upload
+        empty_file = SimpleUploadedFile("empty.txt", b"", content_type="text/plain")
+        res = self.client.post("/api/projects/upload/", {
+            "title": "Wireframes draft",
+            "type": "Project submission",
+            "note": "Initial draft",
+            "file": empty_file
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["project"]["name"], "Wireframes draft")
+        self.assertEqual(data["project"]["fileName"], "")
+        self.assertEqual(data["project"]["fileUrl"], "")
+
     def test_file_validation_rejects_executable(self):
         self._create_student()
 

@@ -973,8 +973,21 @@ function showModal(title, subtitle, body, submitLabel, onSubmit) {
   host.querySelectorAll("[data-close-modal]").forEach(button => button.addEventListener("click", closeModal));
   host.querySelector("#modalForm").addEventListener("submit", async event => {
     event.preventDefault();
-    if (onSubmit) {
-      await onSubmit(new FormData(event.currentTarget));
+    const submitBtn = event.currentTarget.querySelector("button[type=submit]");
+    const originalText = submitBtn ? submitBtn.textContent : "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Please wait...";
+    }
+    try {
+      if (onSubmit) {
+        await onSubmit(new FormData(event.currentTarget));
+      }
+    } finally {
+      if (submitBtn && host.contains(submitBtn)) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
     }
   });
 
@@ -1009,7 +1022,9 @@ function uploadModal() {
       if (!title) return;
 
       const file = formData.get("file");
-      if (file && file.size > 30 * 1024 * 1024) {
+      if (!file || !file.name || file.size === 0) {
+        formData.delete("file");
+      } else if (file.size > 30 * 1024 * 1024) {
         showToast("Files must be 30 MB or smaller.");
         return;
       }
@@ -1052,6 +1067,16 @@ function attachProjectFileModal(index) {
      <p class="project-meta" style="margin-top:7px">Max 30 MB. Your teacher can open or download this attachment from Django.</p>`,
     "Save attachment",
     async formData => {
+      const file = formData.get("file");
+      if (!file || !file.name || file.size === 0) {
+        showToast("Please choose a file to upload.");
+        return;
+      }
+      if (file.size > 30 * 1024 * 1024) {
+        showToast("Files must be 30 MB or smaller.");
+        return;
+      }
+
       try {
         const res = await apiFetch(`/api/projects/${project.id}/attach/`, {
           method: 'POST',
