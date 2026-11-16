@@ -59,6 +59,28 @@ class IdeaAppTests(TestCase):
         self.assertEqual(team.members.count(), 1)
         self.assertTrue(team.members.first().is_leader)
 
+    def test_signup_student_without_team_name(self):
+        payload = {
+            "name": "Alex River",
+            "email": "alex@example.com",
+            "password": "Password123!",
+            "role": "student",
+            "post": "Team leader",
+            "department": "Mechanical Engineering"
+        }
+        res = self.client.post("/api/auth/signup/", data=json.dumps(payload), content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["success"])
+
+        user = User.objects.get(email="alex@example.com")
+        self.assertEqual(user.profile.team_name, "Alex River's Team")
+        team = Team.objects.get(created_by=user)
+        self.assertEqual(team.name, "Alex River's Team")
+
+        res_ws = self.client.get("/api/workspace/")
+        self.assertEqual(res_ws.status_code, 200)
+        self.assertEqual(res_ws.json()["teamName"], "Alex River's Team")
+
     def test_login_and_workspace(self):
         self._create_student()
 

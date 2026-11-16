@@ -202,6 +202,8 @@ def api_signup(request):
                 name=team_name or f"{name}'s Team",
                 created_by=user
             )
+            profile.team_name = team.name
+            profile.save(update_fields=['team_name'])
             is_leader = post != "Team member"
             TeamMember.objects.create(
                 team=team,
