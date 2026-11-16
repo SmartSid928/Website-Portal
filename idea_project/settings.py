@@ -191,18 +191,19 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Idea Student Portal <norep
 MEDIA_URL = '/media/'
 if os.getenv("VERCEL"):
     MEDIA_ROOT = Path('/tmp/media')
-    try:
-        MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        pass
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
 
+try:
+    (MEDIA_ROOT / 'submissions').mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Maximum file upload size: 35 MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 35 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+# Maximum file upload size: 50 MB (supports all file formats)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 
 # Security and session settings
 SESSION_COOKIE_HTTPONLY = True

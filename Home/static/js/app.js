@@ -1133,10 +1133,10 @@ function uploadModal() {
        <option>Research documentation</option>
        <option>Presentation</option>
      </select>
-     <label class="drop-zone" for="projectFile">
+     <label class="drop-zone" id="projectDropZone" for="projectFile">
        ${icons.upload}
        <strong id="fileName">Choose a file or drag it here</strong>
-       <span>PDF, docs, archive, images · Up to 30 MB</span>
+       <span>All file formats supported · Up to 50 MB</span>
      </label>
      <input class="file-input" id="projectFile" name="file" type="file">
      <label class="field-label" for="projectNote">Note for your teacher <span style="color:#a0a5b5;font-weight:500">(optional)</span></label>
@@ -1144,13 +1144,16 @@ function uploadModal() {
     "Submit project",
     async formData => {
       const title = String(formData.get("title") || "").trim();
-      if (!title) return;
+      if (!title) {
+        showToast("Please enter a project title.");
+        return;
+      }
 
       const file = formData.get("file");
       if (!file || !file.name || file.size === 0) {
         formData.delete("file");
-      } else if (file.size > 30 * 1024 * 1024) {
-        showToast("Files must be 30 MB or smaller.");
+      } else if (file.size > 50 * 1024 * 1024) {
+        showToast("Files must be 50 MB or smaller.");
         return;
       }
 
@@ -1159,8 +1162,13 @@ function uploadModal() {
           method: 'POST',
           body: formData
         });
-        const data = await res.json();
-        if (data.success && data.project) {
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = { error: "Failed to parse server response." };
+        }
+        if (res.ok && data.success && data.project) {
           state.projects.unshift(data.project);
           closeModal();
           render();
@@ -1169,15 +1177,47 @@ function uploadModal() {
           showToast(data.error || "Failed to submit project.");
         }
       } catch (err) {
-        showToast("Error uploading project to server.");
+        showToast("Error uploading project to server. Please try again.");
       }
     }
   );
 
   const fileInput = document.getElementById("projectFile");
-  fileInput.addEventListener("change", () => {
-    document.getElementById("fileName").textContent = fileInput.files.length ? fileInput.files[0].name : "Choose a file or drag it here";
-  });
+  const dropZone = document.getElementById("projectDropZone");
+  const fileNameDisplay = document.getElementById("fileName");
+
+  if (fileInput && fileNameDisplay) {
+    fileInput.addEventListener("change", () => {
+      fileNameDisplay.textContent = fileInput.files.length ? fileInput.files[0].name : "Choose a file or drag it here";
+    });
+  }
+
+  if (dropZone && fileInput) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.borderColor = '#554bd0';
+        dropZone.style.background = '#f5f3ff';
+      });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.borderColor = '';
+        dropZone.style.background = '';
+      });
+    });
+    dropZone.addEventListener('drop', e => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        if (fileNameDisplay) {
+          fileNameDisplay.textContent = fileInput.files[0].name;
+        }
+      }
+    });
+  }
 }
 
 function attachProjectFileModal(index) {
@@ -1189,7 +1229,7 @@ function attachProjectFileModal(index) {
     `Add or replace the file for “${escapeHtml(project.name)}”.`,
     `<label class="field-label" for="replacementFile">Choose project file</label>
      <input class="field" id="replacementFile" name="file" type="file" required>
-     <p class="project-meta" style="margin-top:7px">Max 30 MB. Your teacher can open or download this attachment from Django.</p>`,
+     <p class="project-meta" style="margin-top:7px">All file formats supported · Up to 50 MB.</p>`,
     "Save attachment",
     async formData => {
       const file = formData.get("file");
@@ -1197,8 +1237,8 @@ function attachProjectFileModal(index) {
         showToast("Please choose a file to upload.");
         return;
       }
-      if (file.size > 30 * 1024 * 1024) {
-        showToast("Files must be 30 MB or smaller.");
+      if (file.size > 50 * 1024 * 1024) {
+        showToast("Files must be 50 MB or smaller.");
         return;
       }
 
@@ -1207,8 +1247,13 @@ function attachProjectFileModal(index) {
           method: 'POST',
           body: formData
         });
-        const data = await res.json();
-        if (data.success && data.project) {
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = { error: "Failed to parse server response." };
+        }
+        if (res.ok && data.success && data.project) {
           state.projects[index] = data.project;
           closeModal();
           render();

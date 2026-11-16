@@ -27,16 +27,12 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-# File Upload Constraints
-ALLOWED_EXTENSIONS = {
-    '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
-    '.zip', '.tar.gz', '.png', '.jpg', '.jpeg', '.gif', '.txt', '.md', '.fig'
-}
-MAX_FILE_SIZE = 30 * 1024 * 1024  # 30 MB
+# File Upload Constraints - All formats permitted up to 50 MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def validate_uploaded_file(uploaded_file):
-    """Validates file extension and size, and sanitizes filename."""
+    """Validates file size and sanitizes filename for all formats."""
     if not uploaded_file:
         return True, None
     file_name = getattr(uploaded_file, 'name', '') or ''
@@ -44,12 +40,13 @@ def validate_uploaded_file(uploaded_file):
     if not file_name or file_size == 0:
         return True, None
     if file_size > MAX_FILE_SIZE:
-        return False, "File exceeds maximum size of 30 MB."
-    _, ext = os.path.splitext(file_name.lower())
-    if ext not in ALLOWED_EXTENSIONS:
-        return False, f"File format '{ext}' is not permitted. Please upload a PDF, document, archive, or image."
-    # Sanitize filename
-    clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(file_name))
+        return False, "File exceeds maximum size of 50 MB."
+
+    # Sanitize filename while preserving extension
+    base_name = os.path.basename(file_name)
+    clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', base_name)
+    if not clean_name or clean_name.startswith('.'):
+        clean_name = f"project_file_{int(time.time())}_{clean_name}".strip('_')
     uploaded_file.name = clean_name
     return True, None
 
@@ -483,6 +480,7 @@ def api_workspace_data(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def api_upload_project(request):
     """Handles project submission upload with file validation and notifications."""
@@ -499,16 +497,32 @@ def api_upload_project(request):
     if not title:
         return JsonResponse({"success": False, "error": "Project title is required."}, status=400)
 
-    # Validate file
+    # Validate file (allows all formats up to 50 MB)
     if uploaded_file:
         valid, err_msg = validate_uploaded_file(uploaded_file)
         if not valid:
             return JsonResponse({"success": False, "error": err_msg}, status=400)
 
-    team = Team.objects.filter(created_by=request.user).first()
-    if not team:
-        member = TeamMember.objects.filter(email__iexact=request.user.email).first()
-        team = member.team if member else None
+    # Locate active team
+    accepted_member = TeamMember.objects.filter(
+        email__iexact=request.user.email,
+        status='accepted'
+    ).select_related("team").exclude(team__created_by=request.user).first()
+
+    created_team = Team.objects.filter(created_by=request.user).first()
+
+    if accepted_member and accepted_member.team:
+        team = accepted_member.team
+    elif created_team:
+        team = created_team
+    else:
+        active_member = TeamMember.objects.filter(email__iexact=request.user.email, status='accepted').select_related("team").first()
+        team = active_member.team if active_member else None
+
+    # Pick an avatar / card color
+    colors = ["orange", "blue", "green", "rose"]
+    existing_count = ProjectSubmission.objects.filter(owner=request.user).count()
+    color = colors[existing_count % len(colors)]
 
     sub = ProjectSubmission.objects.create(
         owner=request.user,
@@ -517,7 +531,7 @@ def api_upload_project(request):
         project_type=project_type,
         note=note,
         status="In review",
-        color="orange",
+        color=color,
         file=uploaded_file,
         file_name=uploaded_file.name if uploaded_file else "",
     )
@@ -527,13 +541,16 @@ def api_upload_project(request):
     team_label = team.name if team else "Independent"
     teachers = UserProfile.objects.filter(role="teacher").select_related("user")
     for t in teachers:
-        create_notification(
-            t.user,
-            "New Student Submission",
-            f"{profile.display_name} ({team_label}) submitted '{title}' for review.",
-            notification_type="submission",
-            link_page="projects"
-        )
+        try:
+            create_notification(
+                t.user,
+                "New Student Submission",
+                f"{profile.display_name} ({team_label}) submitted '{title}' for review.",
+                notification_type="submission",
+                link_page="projects"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create notification for teacher: {e}")
 
     return JsonResponse({
         "success": True,
@@ -541,6 +558,7 @@ def api_upload_project(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def api_attach_project_file(request, project_id):
     """Replaces or attaches a file to an existing project submission."""
@@ -604,6 +622,7 @@ def api_download_file(request, project_id):
         raise Http404("File not found on server.")
 
 
+@csrf_exempt
 @require_http_methods(["POST", "DELETE"])
 def api_delete_project(request, project_id):
     """Allows student to delete their project if not yet approved, or teacher to remove."""

@@ -140,17 +140,30 @@ class IdeaAppTests(TestCase):
         self.assertEqual(data["project"]["fileName"], "")
         self.assertEqual(data["project"]["fileUrl"], "")
 
-    def test_file_validation_rejects_executable(self):
+    def test_file_upload_supports_all_formats(self):
         self._create_student()
 
-        malicious_file = SimpleUploadedFile("virus.exe", b"malicious code", content_type="application/x-msdownload")
-        res = self.client.post("/api/projects/upload/", {
-            "title": "Test Exploit",
-            "type": "Project submission",
-            "file": malicious_file
-        })
-        self.assertEqual(res.status_code, 400)
-        self.assertIn("not permitted", res.json()["error"])
+        # Test various extensions across code, archives, data, and binaries
+        formats_to_test = [
+            ("script.py", b"print('Hello world')", "text/x-python"),
+            ("data.csv", b"id,val\n1,100", "text/csv"),
+            ("archive.rar", b"RAR archive bytes", "application/x-rar-compressed"),
+            ("model.stl", b"solid part", "application/sla"),
+            ("demo.mp4", b"video binary data", "video/mp4"),
+            ("build.bin", b"\x00\x01\x02\x03", "application/octet-stream"),
+        ]
+
+        for fname, content, ctype in formats_to_test:
+            upload_file = SimpleUploadedFile(fname, content, content_type=ctype)
+            res = self.client.post("/api/projects/upload/", {
+                "title": f"Upload test {fname}",
+                "type": "Project submission",
+                "file": upload_file
+            })
+            self.assertEqual(res.status_code, 200, f"Failed for {fname}: {res.content}")
+            data = res.json()
+            self.assertTrue(data["success"])
+            self.assertEqual(data["project"]["fileName"], fname)
 
     def test_add_teammate_and_query(self):
         self._create_student()
