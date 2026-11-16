@@ -23,6 +23,8 @@ urlpatterns = [
     # Team
     path('api/team/add-member/', views.api_add_teammate, name='api_add_teammate'),
     path('api/team/invitation/<int:invitation_id>/respond/', views.api_respond_invitation, name='api_respond_invitation'),
+    path('api/team/member/<int:member_id>/edit/', views.api_edit_teammate, name='api_edit_teammate'),
+    path('api/team/member/<int:member_id>/delete/', views.api_delete_teammate, name='api_delete_teammate'),
 
     # Queries
     path('api/queries/create/', views.api_ask_query, name='api_ask_query'),

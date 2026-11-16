@@ -487,3 +487,143 @@ class IdeaAppTests(TestCase):
 
         notif_res_after = self.client.get("/api/notifications/")
         self.assertEqual(notif_res_after.json()["unreadCount"], 0)
+
+    def test_team_leader_edit_teammate(self):
+        # 1. Leader signs up and creates team
+        self._create_student("lead_edit@school.edu", "Alice Leader", "Alpha Team")
+        team = Team.objects.get(name="Alpha Team")
+
+        # 2. Leader invites Bob
+        add_res = self.client.post(
+            "/api/team/add-member/",
+            data=json.dumps({"email": "bob_member@school.edu", "role": "Project contributor"}),
+            content_type="application/json"
+        )
+        self.assertEqual(add_res.status_code, 200)
+        bob_member_id = add_res.json()["member"]["id"]
+
+        # Bob signs up as a student
+        self.client.post("/api/auth/logout/")
+        self._create_student("bob_member@school.edu", "Bob Contributor", "Alpha Team")
+        bob_user = User.objects.get(email="bob_member@school.edu")
+
+        # Leader logs back in
+        self.client.post("/api/auth/logout/")
+        self.client.post("/api/auth/login/", {"email": "lead_edit@school.edu", "password": "Password123!"}, content_type="application/json")
+
+        bob_member = TeamMember.objects.get(id=bob_member_id)
+
+        # Edit member details (name and role)
+        edit_res = self.client.post(
+            f"/api/team/member/{bob_member.id}/edit/",
+            data=json.dumps({"name": "Bob Senior Dev", "role": "Full-stack developer"}),
+            content_type="application/json"
+        )
+        self.assertEqual(edit_res.status_code, 200)
+        data = edit_res.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["member"]["name"], "Bob Senior Dev")
+        self.assertEqual(data["member"]["role"], "Full-stack developer")
+
+        # Verify DB member and profile
+        bob_member.refresh_from_db()
+        self.assertEqual(bob_member.name, "Bob Senior Dev")
+        self.assertEqual(bob_member.role, "Full-stack developer")
+
+        bob_user.refresh_from_db()
+        self.assertEqual(bob_user.first_name, "Bob")
+        self.assertEqual(bob_user.last_name, "Senior Dev")
+        self.assertEqual(bob_user.profile.post, "Full-stack developer")
+
+        # Verify notification sent to Bob
+        notif = ActivityNotification.objects.filter(user=bob_user).latest("created_at")
+        self.assertIn("Team Role Updated", notif.title)
+        self.assertIn("Full-stack developer", notif.message)
+
+    def test_team_leader_delete_teammate(self):
+        # 1. Leader signs up and creates team
+        self._create_student("lead_del@school.edu", "Carol Leader", "Beta Team")
+        team = Team.objects.get(name="Beta Team")
+
+        # 2. Add teammate
+        add_res = self.client.post(
+            "/api/team/add-member/",
+            data=json.dumps({"email": "dave@school.edu", "role": "UI / UX designer"}),
+            content_type="application/json"
+        )
+        self.assertEqual(add_res.status_code, 200)
+        dave_member_id = add_res.json()["member"]["id"]
+
+        # Dave creates account and joins
+        self.client.post("/api/auth/logout/")
+        self._create_student("dave@school.edu", "Dave Designer", "Beta Team")
+        dave_user = User.objects.get(email="dave@school.edu")
+        self.assertEqual(dave_user.profile.team_name, "Beta Team")
+
+        # Leader logs back in and removes Dave
+        self.client.post("/api/auth/logout/")
+        self.client.post("/api/auth/login/", {"email": "lead_del@school.edu", "password": "Password123!"}, content_type="application/json")
+
+        del_res = self.client.post(f"/api/team/member/{dave_member_id}/delete/")
+        self.assertEqual(del_res.status_code, 200)
+        data = del_res.json()
+        self.assertTrue(data["success"])
+
+        # Verify member removed from DB
+        self.assertFalse(TeamMember.objects.filter(id=dave_member_id).exists())
+
+        # Verify Dave's profile was cleared from team
+        dave_user.profile.refresh_from_db()
+        self.assertEqual(dave_user.profile.team_name, "")
+        self.assertEqual(dave_user.profile.post, "Student")
+
+        # Verify Dave got removal notification
+        notif = ActivityNotification.objects.filter(user=dave_user).latest("created_at")
+        self.assertEqual(notif.title, "Removed from Team")
+        self.assertIn("Beta Team", notif.message)
+
+    def test_non_leader_cannot_edit_or_delete_teammates(self):
+        # Leader creates team
+        self._create_student("leader_perm@school.edu", "Leader Perm", "Gamma Team")
+        team = Team.objects.get(name="Gamma Team")
+
+        # Leader invites member 1 and member 2
+        self.client.post(
+            "/api/team/add-member/",
+            data=json.dumps({"email": "member1@school.edu", "role": "Project contributor"}),
+            content_type="application/json"
+        )
+        add_m2 = self.client.post(
+            "/api/team/add-member/",
+            data=json.dumps({"email": "member2@school.edu", "role": "Project contributor"}),
+            content_type="application/json"
+        )
+        m2_member_id = add_m2.json()["member"]["id"]
+
+        # Member 1 signs up
+        self.client.post("/api/auth/logout/")
+        self._create_student("member1@school.edu", "Member One", "Gamma Team")
+
+        # Member 1 attempts to edit Member 2
+        edit_res = self.client.post(
+            f"/api/team/member/{m2_member_id}/edit/",
+            data=json.dumps({"name": "Hacked Name", "role": "Hacked Role"}),
+            content_type="application/json"
+        )
+        self.assertEqual(edit_res.status_code, 403)
+        self.assertIn("Only the team leader can edit team members", edit_res.json()["error"])
+
+        # Member 1 attempts to delete Member 2
+        del_res = self.client.post(f"/api/team/member/{m2_member_id}/delete/")
+        self.assertEqual(del_res.status_code, 403)
+        self.assertIn("Only the team leader can remove team members", del_res.json()["error"])
+
+    def test_leader_cannot_delete_self(self):
+        self._create_student("boss@school.edu", "Boss Leader", "Delta Team")
+        team = Team.objects.get(name="Delta Team")
+        leader_member = TeamMember.objects.get(team=team, is_leader=True)
+
+        del_res = self.client.post(f"/api/team/member/{leader_member.id}/delete/")
+        self.assertEqual(del_res.status_code, 400)
+        self.assertIn("The team leader cannot be removed from the team", del_res.json()["error"])
+

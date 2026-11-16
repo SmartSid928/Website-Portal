@@ -61,6 +61,14 @@ def _get_user_profile(user):
     return profile
 
 
+def _is_team_leader(user, team):
+    if not user or not team:
+        return False
+    if team.created_by_id == user.id:
+        return True
+    return TeamMember.objects.filter(team=team, email__iexact=user.email, is_leader=True).exists()
+
+
 def _format_date(dt):
     if not dt:
         return ""
@@ -454,6 +462,7 @@ def api_workspace_data(request):
             "unreadNotifications": unread_notifs,
         },
         "teamName": team_name,
+        "isTeamLeader": _is_team_leader(request.user, team),
         "members": members_list,
         "pendingInvitations": pending_invitations_data,
         "projects": submissions_list,
@@ -893,6 +902,155 @@ def api_respond_invitation(request, invitation_id):
             "action": "rejected",
             "message": f"You declined the invitation to join team '{team_name}'.",
         })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_edit_teammate(request, member_id):
+    """Allows the team leader to update a team member's name and role."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    member = get_object_or_404(TeamMember.objects.select_related("team"), id=member_id)
+    team = member.team
+
+    if not _is_team_leader(request.user, team):
+        return JsonResponse({
+            "success": False,
+            "error": "Permission denied: Only the team leader can edit team members."
+        }, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        data = request.POST
+
+    new_name = str(data.get("name") or "").strip()
+    new_role = str(data.get("role") or "Project contributor").strip()
+
+    if not new_name:
+        return JsonResponse({"success": False, "error": "Member name cannot be empty."}, status=400)
+
+    member.name = new_name
+    member.role = new_role
+    member.save(update_fields=['name', 'role'])
+
+    # If teammate has a registered User account, update their UserProfile post as well
+    if member.email:
+        target_user = User.objects.filter(email__iexact=member.email).first()
+        if target_user:
+            name_parts = new_name.split(None, 1)
+            target_user.first_name = name_parts[0]
+            target_user.last_name = name_parts[1] if len(name_parts) > 1 else ""
+            target_user.save(update_fields=['first_name', 'last_name'])
+
+            t_profile = _get_user_profile(target_user)
+            if t_profile:
+                t_profile.post = new_role
+                t_profile.save(update_fields=['post'])
+
+            if target_user.id != request.user.id:
+                leader_profile = _get_user_profile(request.user)
+                leader_name = leader_profile.display_name if leader_profile else "The team leader"
+                create_notification(
+                    target_user,
+                    "Team Role Updated",
+                    f"{leader_name} updated your role in team '{team.name}' to '{new_role}'.",
+                    notification_type="team",
+                    link_page="team"
+                )
+
+    # Chat announcement
+    leader_profile = _get_user_profile(request.user)
+    leader_name = leader_profile.display_name if leader_profile else request.user.username
+    ChatMessage.objects.create(
+        thread="team",
+        sender=request.user,
+        sender_name=leader_name,
+        color="blue",
+        text=f"✏️ {leader_name} updated teammate {member.name} ({member.email}) - Role: {new_role}."
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Teammate {member.name} updated successfully.",
+        "member": {
+            "id": member.id,
+            "name": member.name,
+            "email": member.email,
+            "initials": member.initials,
+            "role": member.role,
+            "color": member.color,
+            "leader": member.is_leader,
+            "status": member.status,
+        }
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST", "DELETE"])
+def api_delete_teammate(request, member_id):
+    """Allows the team leader to remove a member or cancel an invitation."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    member = get_object_or_404(TeamMember.objects.select_related("team"), id=member_id)
+    team = member.team
+
+    if not _is_team_leader(request.user, team):
+        return JsonResponse({
+            "success": False,
+            "error": "Permission denied: Only the team leader can remove team members."
+        }, status=403)
+
+    if member.is_leader or (member.email and member.email.lower() == request.user.email.lower()):
+        return JsonResponse({
+            "success": False,
+            "error": "The team leader cannot be removed from the team."
+        }, status=400)
+
+    removed_name = member.name
+    removed_email = member.email
+    team_name = team.name
+
+    member.delete()
+
+    # If the removed teammate is a registered user, reset their profile team association
+    if removed_email:
+        target_user = User.objects.filter(email__iexact=removed_email).first()
+        if target_user:
+            t_profile = _get_user_profile(target_user)
+            if t_profile and t_profile.team_name == team_name:
+                t_profile.team_name = ""
+                t_profile.post = "Student"
+                t_profile.save(update_fields=['team_name', 'post'])
+
+            leader_profile = _get_user_profile(request.user)
+            leader_name = leader_profile.display_name if leader_profile else "The team leader"
+            create_notification(
+                target_user,
+                "Removed from Team",
+                f"You were removed from team '{team_name}' by {leader_name}.",
+                notification_type="team",
+                link_page="team"
+            )
+
+    # Chat announcement
+    leader_profile = _get_user_profile(request.user)
+    leader_name = leader_profile.display_name if leader_profile else request.user.username
+    ChatMessage.objects.create(
+        thread="team",
+        sender=request.user,
+        sender_name=leader_name,
+        color="rose",
+        text=f"ℹ️ {leader_name} removed {removed_name} ({removed_email}) from the team."
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": f"{removed_name} was removed from the team.",
+        "removedMemberId": member_id,
+    })
 
 
 @require_http_methods(["POST"])

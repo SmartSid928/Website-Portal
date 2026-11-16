@@ -57,6 +57,7 @@ const state = {
   account: null,
   page: "overview",
   teamName: "",
+  isTeamLeader: false,
   courseName: "",
   selectedThread: "team",
   projects: [],
@@ -98,13 +99,32 @@ function projectRow(project) {
 function membersList() {
   return state.members.map(member => {
     const isPending = member.status === 'pending';
+    const isLeader = !!member.leader;
+
+    let rightContent = '';
+    if (isLeader) {
+      rightContent = '<span class="leader-tag">LEADER</span>';
+    } else {
+      const parts = [];
+      if (isPending) {
+        parts.push('<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>');
+      }
+      if (state.isTeamLeader) {
+        parts.push(`<button class="button-secondary" type="button" data-edit-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;cursor:pointer;" title="Edit member details">Edit</button>`);
+        parts.push(`<button class="button-secondary" type="button" data-delete-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;color:#d32f2f;border-color:#ffcdd2;cursor:pointer;" title="Remove member from team">Remove</button>`);
+      }
+      if (parts.length) {
+        rightContent = `<div class="member-actions" style="display:flex;align-items:center;gap:6px;margin-left:auto;">${parts.join('')}</div>`;
+      }
+    }
+
     return `<div class="member-row" style="${isPending ? 'background:#faf9fe;border-radius:8px;padding:6px 10px;margin-bottom:6px;border:1px dashed #dedaf5;' : ''}">
       <div class="avatar ${member.color || ''}" style="${isPending ? 'opacity:0.75;' : ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
       <div class="member-details">
         <div class="member-name">${escapeHtml(member.name)}</div>
         <div class="member-role">${escapeHtml(member.role)}${isPending ? ' · Awaiting student acceptance' : ''}</div>
       </div>
-      ${member.leader ? '<span class="leader-tag">LEADER</span>' : (isPending ? '<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>' : "")}
+      ${rightContent}
     </div>`;
   }).join("");
 }
@@ -1247,6 +1267,91 @@ function addMemberModal() {
   );
 }
 
+function editMemberModal(memberId) {
+  const member = state.members.find(m => m.id === Number(memberId));
+  if (!member) {
+    showToast("Member not found.");
+    return;
+  }
+  const roles = [
+    "Project contributor",
+    "UI / UX designer",
+    "Frontend developer",
+    "Backend developer",
+    "Full-stack developer",
+    "Research & content",
+    "QA / Tester"
+  ];
+  const roleOptions = roles.map(r => `<option value="${escapeHtml(r)}" ${r === member.role ? "selected" : ""}>${escapeHtml(r)}</option>`).join("");
+  const customRoleOption = (!roles.includes(member.role) && member.role) ? `<option value="${escapeHtml(member.role)}" selected>${escapeHtml(member.role)}</option>` : "";
+
+  showModal(
+    `Edit ${escapeHtml(member.name || "teammate")}`,
+    `Update member details for ${escapeHtml(member.email || "this teammate")}.`,
+    `<label class="field-label" for="editMemberName">Full name</label>
+     <input class="field" id="editMemberName" name="name" type="text" value="${escapeHtml(member.name || "")}" required placeholder="Member name">
+     <label class="field-label" for="editMemberRole">Role on team</label>
+     <select class="field" name="role" id="editMemberRole">
+       ${roleOptions}
+       ${customRoleOption}
+     </select>`,
+    "Save changes",
+    async formData => {
+      const name = String(formData.get("name") || "").trim();
+      const role = String(formData.get("role") || "Project contributor").trim();
+      if (!name) {
+        showToast("Member name is required.");
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`/api/team/member/${member.id}/edit/`, {
+          method: 'POST',
+          body: JSON.stringify({ name, role })
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.member) {
+          const idx = state.members.findIndex(m => m.id === member.id);
+          if (idx !== -1) {
+            state.members[idx] = Object.assign({}, state.members[idx], data.member);
+          }
+          closeModal();
+          render();
+          showToast(data.message || "Teammate updated successfully!");
+        } else {
+          showToast(data.error || "Failed to update member.");
+        }
+      } catch (err) {
+        showToast("Error updating teammate.");
+      }
+    }
+  );
+}
+
+async function removeMemberPrompt(memberId) {
+  const member = state.members.find(m => m.id === Number(memberId));
+  const memberName = member ? member.name : "this teammate";
+  if (!confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`/api/team/member/${memberId}/delete/`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      state.members = state.members.filter(m => m.id !== Number(memberId));
+      render();
+      showToast(data.message || "Teammate removed from team.");
+    } else {
+      showToast(data.error || "Failed to remove teammate.");
+    }
+  } catch (err) {
+    showToast("Error removing teammate.");
+  }
+}
+
 function questionModal() {
   if (state.role === "teacher") {
     showToast("Questions can only be submitted by student teams.");
@@ -1477,6 +1582,18 @@ document.addEventListener("click", event => {
     return;
   }
 
+  const editMemberBtn = event.target.closest("[data-edit-member]");
+  if (editMemberBtn) {
+    editMemberModal(Number(editMemberBtn.dataset.editMember));
+    return;
+  }
+
+  const deleteMemberBtn = event.target.closest("[data-delete-member]");
+  if (deleteMemberBtn) {
+    removeMemberPrompt(Number(deleteMemberBtn.dataset.deleteMember));
+    return;
+  }
+
   const threadButton = event.target.closest("[data-thread]");
   if (threadButton) {
     state.selectedThread = threadButton.dataset.thread;
@@ -1655,6 +1772,7 @@ async function handleLogout() {
   state.queries = [];
   state.teacherSubmissions = [];
   state.unreadNotifications = 0;
+  state.isTeamLeader = false;
 
   document.querySelector(".app-shell").classList.add("hidden");
   document.getElementById("authScreen").classList.remove("hidden");
@@ -1677,6 +1795,7 @@ async function loadWorkspace() {
     state.role = data.role || "student";
     state.account = data.account;
     state.teamName = data.teamName || "";
+    state.isTeamLeader = !!data.isTeamLeader;
     state.members = data.members || [];
     state.pendingInvitations = data.pendingInvitations || [];
     state.projects = data.projects || [];
