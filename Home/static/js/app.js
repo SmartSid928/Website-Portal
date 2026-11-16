@@ -61,6 +61,7 @@ const state = {
   selectedThread: "team",
   projects: [],
   members: [],
+  pendingInvitations: [],
   queries: [],
   messages: { team: [], studio: [], teacher: [] },
   teacherSubmissions: [],
@@ -95,14 +96,17 @@ function projectRow(project) {
 }
 
 function membersList() {
-  return state.members.map(member => `<div class="member-row">
-    <div class="avatar ${member.color || ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
-    <div class="member-details">
-      <div class="member-name">${escapeHtml(member.name)}</div>
-      <div class="member-role">${escapeHtml(member.role)}</div>
-    </div>
-    ${member.leader ? '<span class="leader-tag">LEADER</span>' : ""}
-  </div>`).join("");
+  return state.members.map(member => {
+    const isPending = member.status === 'pending';
+    return `<div class="member-row" style="${isPending ? 'background:#faf9fe;border-radius:8px;padding:6px 10px;margin-bottom:6px;border:1px dashed #dedaf5;' : ''}">
+      <div class="avatar ${member.color || ''}" style="${isPending ? 'opacity:0.75;' : ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
+      <div class="member-details">
+        <div class="member-name">${escapeHtml(member.name)}</div>
+        <div class="member-role">${escapeHtml(member.role)}${isPending ? ' · Awaiting student acceptance' : ''}</div>
+      </div>
+      ${member.leader ? '<span class="leader-tag">LEADER</span>' : (isPending ? '<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>' : "")}
+    </div>`;
+  }).join("");
 }
 
 function queriesList() {
@@ -198,6 +202,27 @@ function renderNotificationsList() {
     const iconClass = item.type === 'submission' ? 'orange' : (item.type === 'query' ? 'green' : 'blue');
     const iconSvg = item.type === 'submission' ? icons.folder : (item.type === 'query' ? icons.send : icons.check);
 
+    if (item.type === 'invitation') {
+      return `
+        <div class="notif-item unread" style="background:#faf9fe;border-left:3px solid #554bd0;" data-notif-id="${item.id}" data-action-type="invitation" data-raw-id="${item.invitationId || item.rawId}">
+          <div class="notif-item-icon blue">
+            ${icons.mail || icons.send || icons.check}
+          </div>
+          <div class="notif-item-content">
+            <div class="notif-item-top">
+              <span class="notif-item-title" style="color:#554bd0;font-weight:700;">${escapeHtml(item.title)}</span>
+              <span class="notif-item-time">${escapeHtml(item.time)}</span>
+            </div>
+            <p class="notif-item-msg" style="margin:4px 0 8px;">${escapeHtml(item.message)}</p>
+            <div style="display:flex;gap:8px;">
+              <button class="button-primary" type="button" onclick="event.stopPropagation();respondToInvitation(${item.invitationId || item.rawId}, 'accept')" style="padding:4px 12px;font-size:11px;height:auto;">Accept</button>
+              <button class="button-secondary" type="button" onclick="event.stopPropagation();respondToInvitation(${item.invitationId || item.rawId}, 'reject')" style="padding:4px 10px;font-size:11px;color:#df696c;border-color:#f5c6cb;height:auto;">Reject</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="notif-item ${isUnread ? 'unread' : ''}" data-notif-id="${item.id}" data-action-type="${item.actionType || ''}" data-raw-id="${item.rawId || ''}" data-link-page="${item.linkPage || ''}">
         <div class="notif-item-icon ${iconClass}">
@@ -222,6 +247,13 @@ async function handleNotificationClick(notifEl) {
   const linkPage = notifEl.dataset.linkPage;
 
   toggleNotificationsDropdown(false);
+
+  // If invitation
+  if (actionType === 'invitation') {
+    state.page = 'team';
+    render();
+    return;
+  }
 
   // If review action for teacher
   if (actionType === 'review' && rawId) {
@@ -307,6 +339,47 @@ function stopNotificationPolling() {
 
 // ----------------- Page Views -----------------
 
+async function respondToInvitation(invitationId, action) {
+  try {
+    const res = await apiFetch(`/api/team/invitation/${invitationId}/respond/`, {
+      method: 'POST',
+      body: JSON.stringify({ action })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message);
+      toggleNotificationsDropdown(false);
+      await loadWorkspace();
+      await loadAndRenderNotifications();
+      render();
+    } else {
+      showToast(data.error || "Failed to respond to invitation.");
+    }
+  } catch (err) {
+    showToast("Error connecting to server. Please try again.");
+  }
+}
+
+function invitationBanners() {
+  if (!state.pendingInvitations || !state.pendingInvitations.length) return "";
+  return state.pendingInvitations.map(inv => `
+    <div class="invitation-banner-card" style="background:linear-gradient(135deg, #f7f6ff 0%, #edeaff 100%);border:1px solid #d5ceff;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;box-shadow:0 4px 14px rgba(85,75,208,0.06);">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:10px;background:#554bd0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📬</div>
+        <div>
+          <div style="display:inline-block;background:#554bd0;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Team Invitation</div>
+          <h3 style="margin:0 0 4px;font-size:15px;color:#181628;font-weight:700;">Join team “${escapeHtml(inv.teamName)}”</h3>
+          <p style="margin:0;font-size:12px;color:#5a5477;"><strong>${escapeHtml(inv.leaderName)}</strong> invited you to join as <strong>${escapeHtml(inv.role)}</strong> (${escapeHtml(inv.date)}).</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="button-secondary" type="button" onclick="respondToInvitation(${inv.id}, 'reject')" style="font-size:12px;padding:8px 14px;color:#df696c;border-color:#f5c6cb;">✕ Reject</button>
+        <button class="button-primary" type="button" onclick="respondToInvitation(${inv.id}, 'accept')" style="font-size:12px;padding:8px 16px;">✓ Accept & Join Team</button>
+      </div>
+    </div>
+  `).join("");
+}
+
 function studentOverview() {
   return `<div class="page-heading">
     <div>
@@ -316,6 +389,7 @@ function studentOverview() {
     </div>
     <button class="button-primary" data-action="upload">${icons.upload} Upload a project</button>
   </div>
+  ${invitationBanners()}
   <section class="welcome-banner">
     <div class="welcome-copy">
       <div class="welcome-kicker">${escapeHtml(state.teamName || "YOUR TEAM")}</div>
@@ -612,6 +686,10 @@ function projectsPage() {
 }
 
 function teamPage() {
+  const acceptedMembers = state.members.filter(m => m.status !== 'pending');
+  const pendingMembers = state.members.filter(m => m.status === 'pending');
+  const countLabel = `${acceptedMembers.length} ${acceptedMembers.length === 1 ? 'member' : 'members'}${pendingMembers.length ? ` · ${pendingMembers.length} pending` : ''}`;
+
   return `<div class="page-heading">
     <div>
       <p class="eyebrow">YOUR COLLABORATORS</p>
@@ -620,11 +698,12 @@ function teamPage() {
     </div>
     <button class="button-primary" data-action="add-member">＋ Add teammate</button>
   </div>
+  ${invitationBanners()}
   <section class="panel">
     <div class="panel-header">
       <div>
         <h2 class="panel-title">${escapeHtml(state.teamName || "Your team")}</h2>
-        <p class="panel-description">${state.members.length} ${state.members.length === 1 ? "member" : "members"}</p>
+        <p class="panel-description">${countLabel}</p>
       </div>
       <span class="leader-tag" style="padding:6px 9px">TEAM LEADER</span>
     </div>
@@ -1571,6 +1650,7 @@ async function handleLogout() {
   } catch (e) {}
 
   state.members = [];
+  state.pendingInvitations = [];
   state.projects = [];
   state.queries = [];
   state.teacherSubmissions = [];
@@ -1598,6 +1678,7 @@ async function loadWorkspace() {
     state.account = data.account;
     state.teamName = data.teamName || "";
     state.members = data.members || [];
+    state.pendingInvitations = data.pendingInvitations || [];
     state.projects = data.projects || [];
     state.queries = data.queries || [];
     state.messages = data.messages || { team: [], studio: [], teacher: [] };

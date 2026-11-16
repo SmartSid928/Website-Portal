@@ -200,20 +200,82 @@ class IdeaAppTests(TestCase):
         }), content_type="application/json")
         self.assertEqual(res_inv.status_code, 200)
         self.assertTrue(res_inv.json()["success"])
+        invite_id = res_inv.json()["member"]["id"]
+        self.assertEqual(res_inv.json()["member"]["status"], "pending")
 
-        # Verify Sam received an in-app ActivityNotification
-        sam_user = User.objects.get(email="sam@example.com")
-        notif = ActivityNotification.objects.filter(user=sam_user, notification_type="team").first()
-        self.assertIsNotNone(notif)
-        self.assertIn("Rocket Team", notif.title)
-
-        # Verify Sam's workspace now reflects Rocket Team
+        # Sam checks workspace before accepting: should see pending invitation
         res_ws = c2.get("/api/workspace/")
         self.assertEqual(res_ws.status_code, 200)
         ws_data = res_ws.json()
-        self.assertEqual(ws_data["teamName"], "Rocket Team")
-        member_emails = [m.get("email", "") for m in ws_data["members"]]
-        self.assertIn("Rocket Team", ws_data["teamName"])
+        self.assertEqual(len(ws_data["pendingInvitations"]), 1)
+        self.assertEqual(ws_data["pendingInvitations"][0]["teamName"], "Rocket Team")
+
+        # Sam checks notifications: should see invitation item
+        res_notif = c2.get("/api/notifications/")
+        self.assertEqual(res_notif.status_code, 200)
+        notif_items = res_notif.json()["notifications"]
+        inv_item = next((n for n in notif_items if n.get("type") == "invitation"), None)
+        self.assertIsNotNone(inv_item)
+
+        # Sam accepts the invitation
+        res_accept = c2.post(f"/api/team/invitation/{invite_id}/respond/", data=json.dumps({
+            "action": "accept"
+        }), content_type="application/json")
+        self.assertEqual(res_accept.status_code, 200)
+        self.assertTrue(res_accept.json()["success"])
+
+        # Verify Sam is now an accepted member of Rocket Team
+        res_ws_after = c2.get("/api/workspace/")
+        self.assertEqual(res_ws_after.json()["teamName"], "Rocket Team")
+        self.assertEqual(len(res_ws_after.json()["pendingInvitations"]), 0)
+
+        # Verify Leader received acceptance notification
+        leader_user = User.objects.get(email="leader@example.com")
+        leader_notif = ActivityNotification.objects.filter(user=leader_user, title__icontains="Accepted").first()
+        self.assertIsNotNone(leader_notif)
+        self.assertIn("Sam", leader_notif.message)
+
+    def test_invite_teammate_rejects_invitation(self):
+        # Leader creates Team
+        self._create_student("lead@example.com", "Team Lead", "Vanguard")
+
+        # Create another student
+        c_bob = Client()
+        c_bob.post("/api/auth/signup/", data=json.dumps({
+            "name": "Bob Rejector",
+            "email": "bob@example.com",
+            "password": "Password123!",
+            "role": "student",
+            "post": "Team member",
+            "department": "IT",
+            "teamName": "Solo Team"
+        }), content_type="application/json")
+
+        # Leader invites Bob
+        res_inv = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "bob@example.com",
+            "role": "UI / UX designer"
+        }), content_type="application/json")
+        self.assertEqual(res_inv.status_code, 200)
+        invite_id = res_inv.json()["member"]["id"]
+
+        # Bob rejects the invitation
+        res_reject = c_bob.post(f"/api/team/invitation/{invite_id}/respond/", data=json.dumps({
+            "action": "reject"
+        }), content_type="application/json")
+        self.assertEqual(res_reject.status_code, 200)
+        self.assertEqual(res_reject.json()["action"], "rejected")
+
+        # Verify Bob is NOT in Vanguard team
+        res_bob_ws = c_bob.get("/api/workspace/")
+        self.assertEqual(len(res_bob_ws.json()["pendingInvitations"]), 0)
+        self.assertNotEqual(res_bob_ws.json()["teamName"], "Vanguard")
+
+        # Verify Leader receives "Invitation Declined" notification
+        leader_user = User.objects.get(email="lead@example.com")
+        decline_notif = ActivityNotification.objects.filter(user=leader_user, title="Invitation Declined").first()
+        self.assertIsNotNone(decline_notif)
+        self.assertIn("declined", decline_notif.message)
 
     def test_invite_teammate_signs_up_after_invite(self):
         # Leader creates Rocket Team
@@ -226,6 +288,7 @@ class IdeaAppTests(TestCase):
         }), content_type="application/json")
         self.assertEqual(res_inv.status_code, 200)
         self.assertTrue(res_inv.json()["success"])
+        invite_id = res_inv.json()["member"]["id"]
 
         # Future student now signs up
         c_future = Client()
@@ -240,10 +303,20 @@ class IdeaAppTests(TestCase):
         }), content_type="application/json")
         self.assertEqual(res_signup.status_code, 200)
 
-        # Future student workspace should belong to Alpha Team
+        # Future student workspace shows pending invitation
         res_ws = c_future.get("/api/workspace/")
         self.assertEqual(res_ws.status_code, 200)
-        self.assertEqual(res_ws.json()["teamName"], "Alpha Team")
+        self.assertEqual(len(res_ws.json()["pendingInvitations"]), 1)
+
+        # Future student accepts
+        res_acc = c_future.post(f"/api/team/invitation/{invite_id}/respond/", data=json.dumps({
+            "action": "accept"
+        }), content_type="application/json")
+        self.assertEqual(res_acc.status_code, 200)
+
+        # Workspace now shows Alpha Team
+        res_final_ws = c_future.get("/api/workspace/")
+        self.assertEqual(res_final_ws.json()["teamName"], "Alpha Team")
 
     def test_invite_validations(self):
         self._create_student("boss@example.com", "Boss", "Boss Team")
@@ -276,7 +349,7 @@ class IdeaAppTests(TestCase):
             "role": "UI / UX designer"
         }), content_type="application/json")
         self.assertEqual(res_dup.status_code, 400)
-        self.assertIn("already in", res_dup.json()["error"])
+        self.assertIn("already been sent", res_dup.json()["error"])
 
     def test_teacher_workflow(self):
         # Student creates account, project, teammate, and query

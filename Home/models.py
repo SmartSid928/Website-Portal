@@ -33,12 +33,20 @@ class Team(models.Model):
 
 
 class TeamMember(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    )
+
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='members')
     name = models.CharField(max_length=150)
     email = models.EmailField(blank=True, default='')
     role = models.CharField(max_length=100, default='Project contributor')
     color = models.CharField(max_length=30, blank=True, default='blue')
     is_leader = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='accepted', db_index=True)
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invited_teammates')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -126,6 +134,8 @@ class ActivityNotification(models.Model):
         ('review', 'Review'),
         ('query', 'Query'),
         ('chat', 'Chat'),
+        ('team', 'Team'),
+        ('invitation', 'Invitation'),
         ('system', 'System'),
     )
 

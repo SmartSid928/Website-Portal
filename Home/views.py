@@ -179,18 +179,15 @@ def api_signup(request):
         team_name=team_name
     )
 
-    # If student, set up Team or join invited Team
+    # If student, set up Team or record pending invitation
     welcome_msg = f"Hi {name}, your {role} workspace is ready. Explore projects, team collaboration, and teacher queries."
     if role == "student":
         existing_invite = TeamMember.objects.filter(email__iexact=email).select_related("team").first()
         if existing_invite and existing_invite.team:
             team = existing_invite.team
-            profile.team_name = team.name
-            profile.post = existing_invite.role or "Project contributor"
-            profile.save(update_fields=['team_name', 'post'])
             existing_invite.name = name
             existing_invite.save(update_fields=['name'])
-            welcome_msg = f"Hi {name}, you have joined team '{team.name}'. Explore your team projects and workspace."
+            welcome_msg = f"Hi {name}, you have a pending invitation to join team '{team.name}'. You can accept or decline it in your workspace."
         else:
             team = Team.objects.create(
                 name=team_name or f"{name}'s Team",
@@ -203,7 +200,8 @@ def api_signup(request):
                 email=email,
                 role=post or "Team leader",
                 color="blue",
-                is_leader=is_leader
+                is_leader=is_leader,
+                status="accepted"
             )
 
     # Welcome notification
@@ -360,17 +358,21 @@ def api_workspace_data(request):
 
     # Student workspace
     # Locate active team:
-    # 1. First check if user was invited to a team created by another user
-    invited_record = TeamMember.objects.filter(email__iexact=request.user.email).select_related("team").exclude(team__created_by=request.user).first()
+    # 1. First check if user is an accepted member of a team created by another user
+    accepted_invited_record = TeamMember.objects.filter(
+        email__iexact=request.user.email,
+        status='accepted'
+    ).select_related("team").exclude(team__created_by=request.user).first()
+
     # 2. Or a team created by the user
     created_team = Team.objects.filter(created_by=request.user).prefetch_related("members").first()
 
-    if invited_record and invited_record.team:
-        team = invited_record.team
+    if accepted_invited_record and accepted_invited_record.team:
+        team = accepted_invited_record.team
     elif created_team:
         team = created_team
     else:
-        member_record = TeamMember.objects.filter(email__iexact=request.user.email).select_related("team").first()
+        member_record = TeamMember.objects.filter(email__iexact=request.user.email, status='accepted').select_related("team").first()
         team = member_record.team if member_record else None
 
     # Keep profile team_name in sync with active team
@@ -385,10 +387,12 @@ def api_workspace_data(request):
             members_list.append({
                 "id": m.id,
                 "name": m.name,
+                "email": m.email,
                 "initials": m.initials,
                 "role": m.role,
                 "color": m.color,
                 "leader": m.is_leader,
+                "status": m.status,
             })
     else:
         initials = "".join([part[0] for part in profile.display_name.strip().split()[:2]]).upper() or "ME"
@@ -398,7 +402,28 @@ def api_workspace_data(request):
             "role": profile.post or "Team leader",
             "color": "blue",
             "leader": profile.post != "Team member",
+            "status": "accepted",
         }]
+
+    # Fetch any pending invitations for the current user
+    pending_invites = TeamMember.objects.filter(
+        email__iexact=request.user.email,
+        status='pending'
+    ).select_related('team', 'invited_by')
+
+    pending_invitations_data = []
+    for inv in pending_invites:
+        inv_leader = inv.invited_by or inv.team.created_by
+        inv_leader_name = inv_leader.first_name or inv_leader.username if inv_leader else "Team leader"
+        pending_invitations_data.append({
+            "id": inv.id,
+            "teamName": inv.team.name,
+            "leaderName": inv_leader_name,
+            "leaderEmail": inv_leader.email if inv_leader else "",
+            "role": inv.role,
+            "color": inv.color,
+            "date": _format_date(inv.created_at),
+        })
 
     if team:
         my_submissions = ProjectSubmission.objects.filter(
@@ -430,6 +455,7 @@ def api_workspace_data(request):
         },
         "teamName": team_name,
         "members": members_list,
+        "pendingInvitations": pending_invitations_data,
         "projects": submissions_list,
         "queries": queries_list,
         "messages": messages_data,
@@ -665,23 +691,26 @@ def api_add_teammate(request):
             created_by=request.user
         )
 
-    # Prevent duplicate member in team
-    existing_member = team.members.filter(email__iexact=email).first()
-    if existing_member:
+    # Check if already an accepted member in this team
+    already_accepted = team.members.filter(email__iexact=email, status='accepted').first()
+    if already_accepted:
         return JsonResponse({
             "success": False,
-            "error": f"{existing_member.name} ({email}) is already in {team.name}."
+            "error": f"{already_accepted.name} ({email}) is already an active member of {team.name}."
+        }, status=400)
+
+    # Check if an invitation is already pending
+    already_pending = team.members.filter(email__iexact=email, status='pending').first()
+    if already_pending:
+        return JsonResponse({
+            "success": False,
+            "error": f"An invitation has already been sent to {email}. Awaiting acceptance."
         }, status=400)
 
     # Check if target user exists on platform
     invited_user = User.objects.filter(email__iexact=email).first()
     if invited_user:
         invited_name = invited_user.get_full_name() or invited_user.first_name or email.split("@")[0].title()
-        invited_profile = _get_user_profile(invited_user)
-        if invited_profile:
-            invited_profile.team_name = team.name
-            invited_profile.post = role
-            invited_profile.save(update_fields=['team_name', 'post'])
     else:
         invited_name = email.split("@")[0].replace(".", " ").replace("-", " ").replace("_", " ").title()
 
@@ -694,7 +723,9 @@ def api_add_teammate(request):
         email=email,
         role=role,
         color=color,
-        is_leader=False
+        is_leader=False,
+        status='pending',
+        invited_by=request.user
     )
 
     # 1. Dispatch in-app notification if user is registered
@@ -702,8 +733,8 @@ def api_add_teammate(request):
         create_notification(
             invited_user,
             f"Team Invitation: {team.name}",
-            f"{profile.display_name} has invited you to join team '{team.name}' as {role}.",
-            notification_type="team",
+            f"{profile.display_name} has invited you to join team '{team.name}' as {role}. Open your team page or notifications to accept or reject.",
+            notification_type="invitation",
             link_page="team"
         )
 
@@ -713,7 +744,7 @@ def api_add_teammate(request):
         sender=request.user,
         sender_name=profile.display_name,
         color="blue",
-        text=f"📢 Invited {invited_name} ({email}) to join our team as {role}."
+        text=f"📢 Invited {invited_name} ({email}) to join our team as {role} (Pending acceptance)."
     )
 
     # 3. Send email invite (fail_silently so missing SMTP never blocks user)
@@ -723,7 +754,7 @@ def api_add_teammate(request):
         message = (
             f"Hello {invited_name},\n\n"
             f"{profile.display_name} has invited you to join team '{team.name}' as a {role} on the Idea Student Project Portal.\n\n"
-            f"To collaborate on projects and join your team, log in or sign up with this email ({email}) at:\n"
+            f"To collaborate on projects and accept or reject the invitation, log in or sign up with this email ({email}) at:\n"
             f"https://website-portal-pied.vercel.app\n\n"
             f"Best regards,\nIdea Platform"
         )
@@ -739,7 +770,7 @@ def api_add_teammate(request):
 
     return JsonResponse({
         "success": True,
-        "message": f"Invitation sent to {email} successfully!",
+        "message": f"Invitation sent to {email} successfully! Awaiting their acceptance.",
         "member": {
             "id": member.id,
             "name": member.name,
@@ -747,8 +778,121 @@ def api_add_teammate(request):
             "role": member.role,
             "color": member.color,
             "leader": False,
+            "status": "pending",
         }
     })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_respond_invitation(request, invitation_id):
+    """Allows an invited student to Accept or Reject a team join request."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    profile = _get_user_profile(request.user)
+    if profile.role != "student":
+        return JsonResponse({"error": "Only students can respond to team invitations."}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        data = request.POST
+
+    action = str(data.get("action") or "").strip().lower()
+    if action not in ["accept", "reject"]:
+        return JsonResponse({"success": False, "error": "Action must be 'accept' or 'reject'."}, status=400)
+
+    member = TeamMember.objects.filter(
+        id=invitation_id,
+        email__iexact=request.user.email,
+        status='pending'
+    ).select_related('team', 'invited_by').first()
+
+    if not member:
+        return JsonResponse({"success": False, "error": "Invitation not found or has already been responded to."}, status=404)
+
+    team = member.team
+    leader = member.invited_by or team.created_by
+
+    if action == "accept":
+        member.status = 'accepted'
+        member.name = request.user.get_full_name() or request.user.first_name or member.name
+        member.save(update_fields=['status', 'name'])
+
+        # Update student profile team association
+        profile.team_name = team.name
+        profile.post = member.role
+        profile.save(update_fields=['team_name', 'post'])
+
+        # Dispatch acceptance notification to Team Leader
+        if leader:
+            create_notification(
+                leader,
+                "Invitation Accepted!",
+                f"{profile.display_name} ({request.user.email}) accepted your invitation and joined team '{team.name}' as {member.role}!",
+                notification_type="team",
+                link_page="team"
+            )
+
+        # Team chat welcome announcement
+        ChatMessage.objects.create(
+            thread="team",
+            sender=request.user,
+            sender_name=profile.display_name,
+            color="green",
+            text=f"🎉 {profile.display_name} accepted the invitation and joined the team as {member.role}!"
+        )
+
+        # Mark invitation notification as read
+        ActivityNotification.objects.filter(
+            user=request.user,
+            notification_type="invitation",
+            title__icontains=team.name
+        ).update(is_read=True)
+
+        return JsonResponse({
+            "success": True,
+            "action": "accepted",
+            "message": f"You accepted the invitation and joined team '{team.name}'!",
+            "teamName": team.name,
+            "member": {
+                "id": member.id,
+                "name": member.name,
+                "initials": member.initials,
+                "role": member.role,
+                "color": member.color,
+                "leader": False,
+                "status": "accepted",
+            }
+        })
+
+    elif action == "reject":
+        team_name = team.name
+        member.delete()
+
+        # Dispatch decline notification to Team Leader
+        if leader:
+            create_notification(
+                leader,
+                "Invitation Declined",
+                f"{profile.display_name} ({request.user.email}) declined your invitation to join team '{team_name}'.",
+                notification_type="team",
+                link_page="team"
+            )
+
+        # Mark invitation notification as read
+        ActivityNotification.objects.filter(
+            user=request.user,
+            notification_type="invitation",
+            title__icontains=team_name
+        ).update(is_read=True)
+
+        return JsonResponse({
+            "success": True,
+            "action": "rejected",
+            "message": f"You declined the invitation to join team '{team_name}'.",
+        })
 
 
 @require_http_methods(["POST"])
@@ -993,6 +1137,32 @@ def api_get_notifications(request):
         })
         if not n.is_read:
             unread_count += 1
+
+    # 4. Pending Invitations for this user (prominently surfaced at top)
+    pending_invites = TeamMember.objects.filter(
+        email__iexact=request.user.email,
+        status='pending'
+    ).select_related('team', 'invited_by')
+
+    for inv in pending_invites:
+        inv_leader = inv.invited_by or inv.team.created_by
+        leader_name = inv_leader.first_name or inv_leader.username if inv_leader else "Team leader"
+        items.insert(0, {
+            "id": f"inv-{inv.id}",
+            "rawId": inv.id,
+            "invitationId": inv.id,
+            "title": f"Team Invitation: {inv.team.name}",
+            "message": f"{leader_name} has invited you to join team '{inv.team.name}' as {inv.role}.",
+            "type": "invitation",
+            "linkPage": "team",
+            "isRead": False,
+            "time": inv.created_at.strftime("%b %d, %I:%M %p"),
+            "actionType": "invitation",
+            "actionLabel": "Respond",
+            "teamName": inv.team.name,
+            "role": inv.role,
+        })
+        unread_count += 1
 
     return JsonResponse({
         "success": True,

@@ -22,6 +22,7 @@ urlpatterns = [
 
     # Team
     path('api/team/add-member/', views.api_add_teammate, name='api_add_teammate'),
+    path('api/team/invitation/<int:invitation_id>/respond/', views.api_respond_invitation, name='api_respond_invitation'),
 
     # Queries
     path('api/queries/create/', views.api_ask_query, name='api_ask_query'),
