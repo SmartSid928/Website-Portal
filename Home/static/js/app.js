@@ -66,6 +66,7 @@ const state = {
   queries: [],
   messages: { team: [], studio: [], teacher: [] },
   teacherSubmissions: [],
+  teacherTeams: [],
   unreadNotifications: 0
 };
 
@@ -530,7 +531,7 @@ function formatSubmissionDate(project) {
 function teacherOverview() {
   const submissions = getStudentSubmissions();
   const awaiting = submissions.filter(project => project.status === "In review").length;
-  const teamsCount = new Set(submissions.map(project => project.teamName).filter(name => name && name !== "Team name not set")).size;
+  const teamsCount = (state.teacherTeams && state.teacherTeams.length) || new Set(submissions.map(project => project.teamName).filter(name => name && name !== "Team name not set")).size;
 
   return `<div class="page-heading">
     <div>
@@ -554,10 +555,10 @@ function teacherOverview() {
     <button class="button-primary" data-action="review-all">Review submissions <span aria-hidden="true">&rarr;</span></button>
   </section>
   <section class="stats-grid">
-    <article class="stat-card">
+    <article class="stat-card" data-page="team" style="cursor:pointer;" title="View all student teams">
       <div class="stat-top"><span>Student teams</span><span class="stat-icon">${icons.people}</span></div>
       <div class="stat-value">${teamsCount.toString().padStart(2, "0")}</div>
-      <div class="stat-note">Teams with submissions</div>
+      <div class="stat-note">View all teams &rarr;</div>
     </article>
     <article class="stat-card">
       <div class="stat-top"><span>Submitted projects</span><span class="stat-icon blue">${icons.folder}</span></div>
@@ -729,7 +730,151 @@ function projectsPage() {
   </section>`;
 }
 
+function renderTeacherTeamMemberRow(member) {
+  const isPending = member.status === 'pending';
+  const isRejected = member.status === 'rejected';
+  const isLeader = !!member.isLeader;
+
+  let rightTag = '';
+  if (isLeader) {
+    rightTag = '<span class="leader-tag">TEAM LEADER</span>';
+  } else if (isPending) {
+    rightTag = '<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>';
+  } else if (isRejected) {
+    rightTag = '<span class="pending-tag" style="background:#ffebee;color:#c62828;border:1px solid #ffcdd2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">INVITE DECLINED</span>';
+  } else {
+    rightTag = '<span style="font-size:10px;font-weight:600;color:#28a879;background:#e8f7f1;padding:3px 8px;border-radius:12px;">ACTIVE</span>';
+  }
+
+  return `<div class="member-row" style="${isPending ? 'background:#faf9fe;border-radius:8px;padding:6px 10px;margin-bottom:6px;border:1px dashed #dedaf5;' : 'padding:8px 0;'}">
+    <div class="avatar ${member.color || ''}" style="${isPending ? 'opacity:0.75;' : ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
+    <div class="member-details">
+      <div class="member-name" style="font-weight:600;color:#181628;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span>${escapeHtml(member.name)}</span>
+        ${member.email ? `<span style="font-weight:400;color:#8f95b2;font-size:11px;">(${escapeHtml(member.email)})</span>` : ''}
+      </div>
+      <div class="member-role" style="font-size:11px;color:#70768b;">${escapeHtml(member.role || 'Project contributor')}${isPending ? ' · Awaiting student acceptance' : ''}</div>
+    </div>
+    <div style="margin-left:auto;">${rightTag}</div>
+  </div>`;
+}
+
+function teacherTeamsRows(searchTerm = "", filter = "all") {
+  let teams = state.teacherTeams || [];
+  const term = (searchTerm || "").toLowerCase().trim();
+
+  if (term) {
+    teams = teams.filter(t => {
+      const matchName = (t.name || "").toLowerCase().includes(term);
+      const matchCreator = (t.createdBy || "").toLowerCase().includes(term);
+      const matchMember = (t.members || []).some(m =>
+        (m.name || "").toLowerCase().includes(term) ||
+        (m.email || "").toLowerCase().includes(term) ||
+        (m.role || "").toLowerCase().includes(term)
+      );
+      return matchName || matchCreator || matchMember;
+    });
+  }
+
+  if (filter === "has_submissions") {
+    teams = teams.filter(t => (t.projectsCount || 0) > 0);
+  } else if (filter === "has_pending") {
+    teams = teams.filter(t => (t.pendingCount || 0) > 0);
+  }
+
+  if (!teams.length) {
+    return `<div class="empty-state" style="background:#fff;padding:40px 20px;border-radius:14px;border:1px solid #eceef4;text-align:center;">
+      <p style="font-size:14px;font-weight:600;color:#181628;margin-bottom:4px;">No matching teams found</p>
+      <p style="font-size:12px;color:#8f95b2;">Try clearing the search or filter to view all student teams.</p>
+    </div>`;
+  }
+
+  return teams.map(team => {
+    const acceptedMembers = (team.members || []).filter(m => m.status === 'accepted');
+    const pendingMembers = (team.members || []).filter(m => m.status === 'pending');
+
+    return `<section class="panel" style="margin-bottom:18px;">
+      <div class="panel-header" style="flex-wrap:wrap;gap:10px;padding:16px 20px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+            <h2 class="panel-title" style="margin:0;font-size:17px;font-weight:700;color:#181628;">${escapeHtml(team.name)}</h2>
+            <span class="term-pill" style="font-size:11px;">${acceptedMembers.length} active ${acceptedMembers.length === 1 ? 'member' : 'members'}</span>
+            ${pendingMembers.length ? `<span style="font-size:11px;font-weight:600;color:#e65100;background:#fff3e0;padding:2px 8px;border-radius:10px;border:1px solid #ffe0b2;">${pendingMembers.length} pending invite${pendingMembers.length > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          <p class="panel-description" style="margin:0;font-size:12px;color:#8f95b2;">
+            Team leader: <strong style="color:#4a5068;">${escapeHtml(team.createdBy)}</strong> · Registered ${escapeHtml(team.createdAt || 'recently')}
+          </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="leader-tag" style="background:#f0efff;color:#554bd0;border:1px solid #dcd7fc;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;">
+            ${team.projectsCount || 0} ${(team.projectsCount === 1) ? 'project' : 'projects'} submitted
+          </span>
+        </div>
+      </div>
+      <div class="team-members" style="padding:14px 20px 18px;">
+        <div style="font-size:11px;font-weight:700;color:#70768b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">
+          Team Members (${team.members ? team.members.length : 0})
+        </div>
+        ${team.members && team.members.length
+          ? team.members.map(m => renderTeacherTeamMemberRow(m)).join("")
+          : '<div class="empty-state" style="padding:10px 0;">No members in this team.</div>'
+        }
+      </div>
+    </section>`;
+  }).join("");
+}
+
+function teacherTeamsPage() {
+  const teams = state.teacherTeams || [];
+  const totalMembers = teams.reduce((acc, t) => acc + (t.membersCount || 0), 0);
+  const totalSubmissions = teams.reduce((acc, t) => acc + (t.projectsCount || 0), 0);
+
+  return `<div class="page-heading">
+    <div>
+      <p class="eyebrow">TEACHER WORKSPACE</p>
+      <h1>Teams</h1>
+      <p class="page-subtitle">View and monitor all student project teams and their members.</p>
+    </div>
+  </div>
+  <section class="stats-grid" style="margin-bottom:20px;">
+    <article class="stat-card">
+      <div class="stat-top"><span>Total teams</span><span class="stat-icon">${icons.people}</span></div>
+      <div class="stat-value">${teams.length.toString().padStart(2, "0")}</div>
+      <div class="stat-note">Registered student teams</div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-top"><span>Active students</span><span class="stat-icon green">${icons.check}</span></div>
+      <div class="stat-value">${totalMembers.toString().padStart(2, "0")}</div>
+      <div class="stat-note">Students across all teams</div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-top"><span>Team projects</span><span class="stat-icon blue">${icons.folder}</span></div>
+      <div class="stat-value">${totalSubmissions.toString().padStart(2, "0")}</div>
+      <div class="stat-note">Submissions from teams</div>
+    </article>
+  </section>
+  <div class="panel-header" style="background:#fff;padding:16px 20px;border-radius:14px;border:1px solid #eceef4;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h2 class="panel-title" style="margin:0;font-size:16px;">All Student Teams</h2>
+      <p class="panel-description" style="margin:2px 0 0;">${teams.length} ${teams.length === 1 ? 'team' : 'teams'} in Django database</p>
+    </div>
+    <div class="toolbar" style="display:flex;align-items:center;gap:10px;">
+      <input type="text" id="teacherTeamSearch" class="field" placeholder="Search teams or members..." style="height:36px;padding:6px 12px;font-size:12px;width:220px;margin:0;">
+      <select class="select-filter" id="teacherTeamFilter" aria-label="Filter teams" style="height:36px;">
+        <option value="all">All teams</option>
+        <option value="has_submissions">With submissions</option>
+        <option value="has_pending">With pending invites</option>
+      </select>
+    </div>
+  </div>
+  <div id="teacherTeamsList">
+    ${teacherTeamsRows()}
+  </div>`;
+}
+
 function teamPage() {
+  if (state.role === "teacher") return teacherTeamsPage();
+
   const acceptedMembers = state.members.filter(m => m.status !== 'pending');
   const pendingMembers = state.members.filter(m => m.status === 'pending');
   const countLabel = `${acceptedMembers.length} active ${acceptedMembers.length === 1 ? 'member' : 'members'}${pendingMembers.length ? ` · ${pendingMembers.length} pending invitation${pendingMembers.length > 1 ? 's' : ''}` : ''}`;
@@ -973,18 +1118,21 @@ function render() {
   document.getElementById("authScreen").classList.add("hidden");
 
   document.querySelectorAll(".nav-item").forEach(button => {
-    const enabled = state.role === "student" || ["overview", "projects", "queries"].includes(button.dataset.page);
+    const enabled = state.role === "student" || ["overview", "projects", "team", "queries"].includes(button.dataset.page);
     button.classList.toggle("hidden", !enabled);
     button.classList.toggle("active", button.dataset.page === state.page);
     if (button.dataset.page === state.page) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
 
-  if (state.role === "teacher" && ["team", "messages"].includes(state.page)) {
+  if (state.role === "teacher" && ["messages"].includes(state.page)) {
     state.page = "overview";
   }
 
-  document.getElementById("breadcrumbCurrent").textContent = state.role === "teacher" && state.page === "overview" ? "Teacher dashboard" : pageNames[state.page];
+  const breadcrumbPage = state.role === "teacher"
+    ? (state.page === "overview" ? "Teacher dashboard" : state.page === "projects" ? "Student projects" : state.page === "team" ? "Teams" : state.page === "queries" ? "Student questions" : pageNames[state.page])
+    : pageNames[state.page];
+  document.getElementById("breadcrumbCurrent").textContent = breadcrumbPage;
   document.getElementById("profileName").textContent = state.account.name;
 
   const accountType = state.role === "teacher" ? "Teacher" : "Student";
@@ -996,11 +1144,24 @@ function render() {
   const projectNavSpan = document.querySelector('[data-page="projects"] span');
   if (projectNavSpan) projectNavSpan.textContent = state.role === "teacher" ? "Student projects" : "My projects";
 
+  const teamNavLabel = document.getElementById("teamNavLabel") || document.querySelector('[data-page="team"] span');
+  if (teamNavLabel) teamNavLabel.textContent = state.role === "teacher" ? "Teams" : "My team";
+
   const queryNavSpan = document.querySelector('[data-page="queries"] span');
   if (queryNavSpan) queryNavSpan.textContent = state.role === "teacher" ? "Student questions" : "Queries";
 
   const pCountEl = document.querySelector('[data-count="projects"]');
   if (pCountEl) pCountEl.textContent = projectCount;
+
+  const tCountEl = document.querySelector('[data-count="teams"]');
+  if (tCountEl) {
+    if (state.role === "teacher") {
+      tCountEl.textContent = state.teacherTeams ? state.teacherTeams.length : 0;
+      tCountEl.classList.remove("hidden");
+    } else {
+      tCountEl.classList.add("hidden");
+    }
+  }
 
   const qCountEl = document.querySelector('[data-count="queries"]');
   if (qCountEl) {
@@ -1048,6 +1209,22 @@ function render() {
       const listEl = document.getElementById("teacherQueryList");
       if (listEl) listEl.innerHTML = teacherQueriesRows(teacherQueryFilter.value);
     });
+  }
+
+  const teacherTeamSearch = document.getElementById("teacherTeamSearch");
+  const teacherTeamFilter = document.getElementById("teacherTeamFilter");
+  if (teacherTeamSearch || teacherTeamFilter) {
+    const updateTeacherTeams = () => {
+      const listEl = document.getElementById("teacherTeamsList");
+      if (listEl) {
+        listEl.innerHTML = teacherTeamsRows(
+          teacherTeamSearch ? teacherTeamSearch.value : "",
+          teacherTeamFilter ? teacherTeamFilter.value : "all"
+        );
+      }
+    };
+    if (teacherTeamSearch) teacherTeamSearch.addEventListener("input", updateTeacherTeams);
+    if (teacherTeamFilter) teacherTeamFilter.addEventListener("change", updateTeacherTeams);
   }
 
   const chatForm = document.getElementById("chatForm");
@@ -1840,6 +2017,7 @@ async function handleLogout() {
   state.projects = [];
   state.queries = [];
   state.teacherSubmissions = [];
+  state.teacherTeams = [];
   state.unreadNotifications = 0;
   state.isTeamLeader = false;
 
@@ -1871,6 +2049,7 @@ async function loadWorkspace() {
     state.queries = data.queries || [];
     state.messages = data.messages || { team: [], studio: [], teacher: [] };
     state.teacherSubmissions = data.submissions || [];
+    state.teacherTeams = data.teams || [];
     state.unreadNotifications = data.account?.unreadNotifications || 0;
 
     render();

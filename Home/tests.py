@@ -423,6 +423,15 @@ class IdeaAppTests(TestCase):
         self.assertEqual(sub["name"], "Smart Campus App")
         self.assertEqual(sub["teamName"], "Byte Force")
 
+        # Verify teams in teacher workspace
+        self.assertIn("teams", ws)
+        self.assertEqual(len(ws["teams"]), 1)
+        self.assertEqual(ws["teams"][0]["name"], "Byte Force")
+        self.assertEqual(ws["teams"][0]["membersCount"], 1)
+        self.assertEqual(len(ws["teams"][0]["members"]), 1)
+        self.assertEqual(ws["teams"][0]["members"][0]["name"], "Jane Student")
+        self.assertTrue(ws["teams"][0]["members"][0]["isLeader"])
+
         # Teacher reviews project
         res_rev = self.client.post(f"/api/projects/{sub['id']}/review/", data=json.dumps({
             "status": "Approved",
@@ -726,5 +735,56 @@ class IdeaAppTests(TestCase):
         viji_ws_after = self.client.get("/api/workspace/").json()
         raji_in_viji_ws_after = next(m for m in viji_ws_after["members"] if m["email"] == "raji@school.edu")
         self.assertEqual(raji_in_viji_ws_after["status"], "accepted")
+
+    def test_teacher_teams_page_and_api(self):
+        # 1. Unauthenticated request to /api/teams/ returns 401
+        res_unauth = self.client.get("/api/teams/")
+        self.assertEqual(res_unauth.status_code, 401)
+
+        # 2. Student setup
+        self._create_student("alpha.lead@school.edu", "Alice Leader", "AlphaForce")
+        self.client.post("/api/team/add-member/", data=json.dumps({
+            "name": "Bob Contributor",
+            "email": "bob.c@school.edu",
+            "role": "Researcher"
+        }), content_type="application/json")
+
+        # Student request to /api/teams/ returns 403
+        res_student_teams = self.client.get("/api/teams/")
+        self.assertEqual(res_student_teams.status_code, 403)
+
+        # Create second team
+        self.client.post("/api/auth/logout/")
+        self._create_student("beta.lead@school.edu", "Charlie Leader", "BetaSquad")
+
+        # 3. Teacher setup
+        self.client.post("/api/auth/logout/")
+        self._create_teacher("prof.einstein@school.edu", "Prof. Einstein")
+
+        # 4. Teacher calls /api/teams/
+        res_teams = self.client.get("/api/teams/")
+        self.assertEqual(res_teams.status_code, 200)
+        data = res_teams.json()
+        self.assertTrue(data["success"])
+        teams = data["teams"]
+        self.assertEqual(len(teams), 2)
+
+        team_names = [t["name"] for t in teams]
+        self.assertIn("AlphaForce", team_names)
+        self.assertIn("BetaSquad", team_names)
+
+        alpha_team = next(t for t in teams if t["name"] == "AlphaForce")
+        self.assertEqual(alpha_team["createdBy"], "Alice Leader")
+        self.assertEqual(len(alpha_team["members"]), 2)
+        member_names = [m["name"] for m in alpha_team["members"]]
+        self.assertIn("Alice Leader", member_names)
+        self.assertIn("Bob Contributor", member_names)
+
+        # 5. Teacher calls /api/workspace/
+        res_ws = self.client.get("/api/workspace/")
+        self.assertEqual(res_ws.status_code, 200)
+        ws_teams = res_ws.json()["teams"]
+        self.assertEqual(len(ws_teams), 2)
+
 
 

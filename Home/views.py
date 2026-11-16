@@ -113,6 +113,42 @@ def _serialize_submission_for_teacher(sub):
     return data
 
 
+def _get_teams_list_for_teacher():
+    """Fetches all student teams with their members and submissions for the teacher dashboard."""
+    teams_qs = Team.objects.all().select_related("created_by").prefetch_related(
+        "members", "submissions"
+    ).order_by("name")
+
+    teams_list = []
+    for t in teams_qs:
+        members_data = []
+        for m in t.members.all():
+            members_data.append({
+                "id": m.id,
+                "name": m.name,
+                "email": m.email,
+                "role": m.role,
+                "color": m.color,
+                "isLeader": m.is_leader,
+                "status": m.status,
+                "initials": m.initials,
+            })
+        accepted_count = sum(1 for m in members_data if m["status"] == "accepted")
+        pending_count = sum(1 for m in members_data if m["status"] == "pending")
+        teams_list.append({
+            "id": t.id,
+            "name": t.name,
+            "createdBy": (t.created_by.get_full_name() or t.created_by.username) if t.created_by else "Unknown",
+            "creatorEmail": t.created_by.email if t.created_by else "",
+            "createdAt": _format_date(t.created_at) if t.created_at else "",
+            "membersCount": accepted_count,
+            "pendingCount": pending_count,
+            "projectsCount": t.submissions.count(),
+            "members": members_data,
+        })
+    return teams_list
+
+
 @ensure_csrf_cookie
 def home(request):
     """Serves the main IDEA application template."""
@@ -352,6 +388,8 @@ def api_workspace_data(request):
             "response": q.response,
         } for q in queries]
 
+        teams_list = _get_teams_list_for_teacher()
+
         return JsonResponse({
             "role": "teacher",
             "account": {
@@ -365,6 +403,7 @@ def api_workspace_data(request):
             "submissions": submissions_list,
             "queries": queries_list,
             "messages": messages_data,
+            "teams": teams_list,
         })
 
     # Student workspace
@@ -707,6 +746,7 @@ def api_add_teammate(request):
 
     email = str(data.get("email") or "").strip().lower()
     role = str(data.get("role") or "Project contributor").strip()
+    name = str(data.get("name") or "").strip()
 
     if not email:
         return JsonResponse({"success": False, "error": "Email is required."}, status=400)
@@ -751,7 +791,9 @@ def api_add_teammate(request):
 
     # Check if target user exists on platform
     invited_user = User.objects.filter(email__iexact=email).first()
-    if invited_user:
+    if name:
+        invited_name = name
+    elif invited_user:
         invited_name = invited_user.get_full_name() or invited_user.first_name or email.split("@")[0].title()
     else:
         invited_name = email.split("@")[0].replace(".", " ").replace("-", " ").replace("_", " ").title()
@@ -1113,6 +1155,20 @@ def api_delete_teammate(request, member_id):
         "message": f"{removed_name} was removed from the team.",
         "removedMemberId": member_id,
     })
+
+
+@require_http_methods(["GET"])
+def api_teams_list(request):
+    """Returns all student teams and their members for teacher dashboard."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Unauthorized"}, status=401)
+
+    profile = getattr(request.user, "profile", None)
+    if not profile or profile.role != "teacher":
+        return JsonResponse({"success": False, "error": "Teacher access required"}, status=403)
+
+    teams_list = _get_teams_list_for_teacher()
+    return JsonResponse({"success": True, "teams": teams_list})
 
 
 @require_http_methods(["POST"])

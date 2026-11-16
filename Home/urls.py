@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/projects/<int:project_id>/delete/', views.api_delete_project, name='api_delete_project'),
 
     # Team
+    path('api/teams/', views.api_teams_list, name='api_teams_list'),
     path('api/team/add-member/', views.api_add_teammate, name='api_add_teammate'),
     path('api/team/invitation/<int:invitation_id>/respond/', views.api_respond_invitation, name='api_respond_invitation'),
     path('api/team/member/<int:member_id>/edit/', views.api_edit_teammate, name='api_edit_teammate'),
