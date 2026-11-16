@@ -554,10 +554,20 @@ class IdeaAppTests(TestCase):
         self.assertEqual(add_res.status_code, 200)
         dave_member_id = add_res.json()["member"]["id"]
 
-        # Dave creates account and joins
+        # Dave creates account and is initially pending (not in Beta Team yet)
         self.client.post("/api/auth/logout/")
         self._create_student("dave@school.edu", "Dave Designer", "Beta Team")
         dave_user = User.objects.get(email="dave@school.edu")
+        self.assertEqual(dave_user.profile.team_name, "")
+
+        # Dave accepts the invitation to join Beta Team
+        accept_res = self.client.post(
+            f"/api/team/invitation/{dave_member_id}/respond/",
+            data=json.dumps({"action": "accept"}),
+            content_type="application/json"
+        )
+        self.assertEqual(accept_res.status_code, 200)
+        dave_user.profile.refresh_from_db()
         self.assertEqual(dave_user.profile.team_name, "Beta Team")
 
         # Leader logs back in and removes Dave
@@ -626,4 +636,60 @@ class IdeaAppTests(TestCase):
         del_res = self.client.post(f"/api/team/member/{leader_member.id}/delete/")
         self.assertEqual(del_res.status_code, 400)
         self.assertIn("The team leader cannot be removed from the team", del_res.json()["error"])
+
+    def test_invitation_lifecycle_pending_to_accepted(self):
+        # 1. Leader Viji creates team code-alpha
+        self._create_student("viji@school.edu", "viji", "code-alpha")
+        team = Team.objects.get(name="code-alpha")
+
+        # 2. Viji invites Raji
+        add_res = self.client.post(
+            "/api/team/add-member/",
+            data=json.dumps({"email": "raji@school.edu", "role": "Project contributor"}),
+            content_type="application/json"
+        )
+        self.assertEqual(add_res.status_code, 200)
+        raji_member_id = add_res.json()["member"]["id"]
+        raji_member = TeamMember.objects.get(id=raji_member_id)
+        self.assertEqual(raji_member.status, "pending")
+
+        # Leader views workspace: raji is present with status pending
+        viji_ws = self.client.get("/api/workspace/").json()
+        raji_in_viji_ws = next(m for m in viji_ws["members"] if m["email"] == "raji@school.edu")
+        self.assertEqual(raji_in_viji_ws["status"], "pending")
+
+        # 3. Raji registers / signs up
+        self.client.post("/api/auth/logout/")
+        self._create_student("raji@school.edu", "raji", "code-alpha")
+        raji_user = User.objects.get(email="raji@school.edu")
+
+        # 4. BEFORE accepting: Raji's workspace does NOT list code-alpha as active team
+        raji_ws = self.client.get("/api/workspace/").json()
+        self.assertEqual(raji_ws["teamName"], "")
+        self.assertEqual(len(raji_ws["pendingInvitations"]), 1)
+        self.assertEqual(raji_ws["pendingInvitations"][0]["teamName"], "code-alpha")
+
+        # 5. Raji accepts the invitation
+        accept_res = self.client.post(
+            f"/api/team/invitation/{raji_member_id}/respond/",
+            data=json.dumps({"action": "accept"}),
+            content_type="application/json"
+        )
+        self.assertEqual(accept_res.status_code, 200)
+        self.assertTrue(accept_res.json()["success"])
+
+        # 6. AFTER accepting: Raji's workspace now reflects team code-alpha and accepted status
+        raji_ws_after = self.client.get("/api/workspace/").json()
+        self.assertEqual(raji_ws_after["teamName"], "code-alpha")
+        self.assertEqual(len(raji_ws_after["pendingInvitations"]), 0)
+        raji_in_team = next(m for m in raji_ws_after["members"] if m["email"] == "raji@school.edu")
+        self.assertEqual(raji_in_team["status"], "accepted")
+
+        # Leader views workspace: raji status is now accepted
+        self.client.post("/api/auth/logout/")
+        self.client.post("/api/auth/login/", {"email": "viji@school.edu", "password": "Password123!"}, content_type="application/json")
+        viji_ws_after = self.client.get("/api/workspace/").json()
+        raji_in_viji_ws_after = next(m for m in viji_ws_after["members"] if m["email"] == "raji@school.edu")
+        self.assertEqual(raji_in_viji_ws_after["status"], "accepted")
+
 

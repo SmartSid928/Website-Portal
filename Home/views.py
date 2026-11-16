@@ -190,11 +190,15 @@ def api_signup(request):
     # If student, set up Team or record pending invitation
     welcome_msg = f"Hi {name}, your {role} workspace is ready. Explore projects, team collaboration, and teacher queries."
     if role == "student":
-        existing_invite = TeamMember.objects.filter(email__iexact=email).select_related("team").first()
+        existing_invite = TeamMember.objects.filter(email__iexact=email, status='pending').select_related("team").first()
         if existing_invite and existing_invite.team:
             team = existing_invite.team
             existing_invite.name = name
             existing_invite.save(update_fields=['name'])
+            # Student is invited, NOT yet accepted. Keep team_name empty and role Student.
+            profile.team_name = ""
+            profile.post = "Student"
+            profile.save(update_fields=['team_name', 'post'])
             welcome_msg = f"Hi {name}, you have a pending invitation to join team '{team.name}'. You can accept or decline it in your workspace."
         else:
             team = Team.objects.create(
@@ -384,11 +388,17 @@ def api_workspace_data(request):
         team = member_record.team if member_record else None
 
     # Keep profile team_name in sync with active team
-    if team and profile.team_name != team.name:
-        profile.team_name = team.name
-        profile.save(update_fields=['team_name'])
+    if team:
+        if profile.team_name != team.name:
+            profile.team_name = team.name
+            profile.save(update_fields=['team_name'])
+        team_name = team.name
+    else:
+        if profile.team_name:
+            profile.team_name = ""
+            profile.save(update_fields=['team_name'])
+        team_name = ""
 
-    team_name = team.name if team else (profile.team_name or "Your team")
     members_list = []
     if team:
         for m in team.members.all():
@@ -405,11 +415,13 @@ def api_workspace_data(request):
     else:
         initials = "".join([part[0] for part in profile.display_name.strip().split()[:2]]).upper() or "ME"
         members_list = [{
+            "id": 0,
             "name": profile.display_name,
+            "email": request.user.email,
             "initials": initials,
-            "role": profile.post or "Team leader",
+            "role": profile.post or "Student",
             "color": "blue",
-            "leader": profile.post != "Team member",
+            "leader": False,
             "status": "accepted",
         }]
 
@@ -819,6 +831,13 @@ def api_respond_invitation(request, invitation_id):
     ).select_related('team', 'invited_by').first()
 
     if not member:
+        # Fallback: find pending invite by email in case notification ID or raw ID was passed
+        member = TeamMember.objects.filter(
+            email__iexact=request.user.email,
+            status='pending'
+        ).select_related('team', 'invited_by').first()
+
+    if not member:
         return JsonResponse({"success": False, "error": "Invitation not found or has already been responded to."}, status=404)
 
     team = member.team
@@ -833,6 +852,11 @@ def api_respond_invitation(request, invitation_id):
         profile.team_name = team.name
         profile.post = member.role
         profile.save(update_fields=['team_name', 'post'])
+
+        # Clean up any empty solo placeholder team created prior to accepting this team invitation
+        solo_team = Team.objects.filter(created_by=request.user).exclude(id=team.id).first()
+        if solo_team and solo_team.members.count() <= 1 and solo_team.submissions.count() == 0:
+            solo_team.delete()
 
         # Dispatch acceptance notification to Team Leader
         if leader:
@@ -853,12 +877,17 @@ def api_respond_invitation(request, invitation_id):
             text=f"🎉 {profile.display_name} accepted the invitation and joined the team as {member.role}!"
         )
 
-        # Mark invitation notification as read
+        # Update invitation notification so action buttons no longer appear
         ActivityNotification.objects.filter(
             user=request.user,
             notification_type="invitation",
             title__icontains=team.name
-        ).update(is_read=True)
+        ).update(
+            is_read=True,
+            notification_type="team",
+            title=f"Joined Team: {team.name}",
+            message=f"You accepted the invitation and joined team '{team.name}' as {member.role}."
+        )
 
         return JsonResponse({
             "success": True,
@@ -879,6 +908,18 @@ def api_respond_invitation(request, invitation_id):
     elif action == "reject":
         team_name = team.name
         member.delete()
+
+        # Update ActivityNotification
+        ActivityNotification.objects.filter(
+            user=request.user,
+            notification_type="invitation",
+            title__icontains=team_name
+        ).update(
+            is_read=True,
+            notification_type="team",
+            title=f"Declined Invitation: {team_name}",
+            message=f"You declined the invitation to join team '{team_name}'."
+        )
 
         # Dispatch decline notification to Team Leader
         if leader:
@@ -1280,13 +1321,23 @@ def api_get_notifications(request):
 
     # 3. Explicit Activity Notifications for the user
     user_notifs = ActivityNotification.objects.filter(user=request.user).order_by("-created_at")[:20]
+    has_live_pending = TeamMember.objects.filter(email__iexact=request.user.email, status='pending').exists()
+
     for n in user_notifs:
+        n_type = n.notification_type
+        if n_type == "invitation":
+            if has_live_pending:
+                # Step 4 will inject the live pending invitation with action buttons; skip duplicate
+                continue
+            else:
+                n_type = "team"
+
         items.append({
             "id": f"notif-{n.id}",
             "rawId": n.id,
             "title": n.title,
             "message": n.message,
-            "type": n.notification_type,
+            "type": n_type,
             "linkPage": n.link_page or "overview",
             "isRead": n.is_read,
             "time": n.created_at.strftime("%b %d, %I:%M %p"),

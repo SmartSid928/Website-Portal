@@ -96,37 +96,61 @@ function projectRow(project) {
   </div>`;
 }
 
-function membersList() {
-  return state.members.map(member => {
-    const isPending = member.status === 'pending';
-    const isLeader = !!member.leader;
+function renderMemberRow(member) {
+  const isPending = member.status === 'pending';
+  const isLeader = !!member.leader;
 
-    let rightContent = '';
-    if (isLeader) {
-      rightContent = '<span class="leader-tag">LEADER</span>';
-    } else {
-      const parts = [];
-      if (isPending) {
-        parts.push('<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>');
-      }
-      if (state.isTeamLeader) {
-        parts.push(`<button class="button-secondary" type="button" data-edit-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;cursor:pointer;" title="Edit member details">Edit</button>`);
-        parts.push(`<button class="button-secondary" type="button" data-delete-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;color:#d32f2f;border-color:#ffcdd2;cursor:pointer;" title="Remove member from team">Remove</button>`);
-      }
-      if (parts.length) {
-        rightContent = `<div class="member-actions" style="display:flex;align-items:center;gap:6px;margin-left:auto;">${parts.join('')}</div>`;
-      }
+  let rightContent = '';
+  if (isLeader) {
+    rightContent = '<span class="leader-tag">LEADER</span>';
+  } else {
+    const parts = [];
+    if (isPending) {
+      parts.push('<span class="pending-tag" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.3px;">PENDING INVITE</span>');
     }
+    if (state.isTeamLeader) {
+      parts.push(`<button class="button-secondary" type="button" data-edit-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;cursor:pointer;" title="Edit member details">Edit</button>`);
+      parts.push(`<button class="button-secondary" type="button" data-delete-member="${member.id}" style="padding:4px 10px;font-size:11px;height:auto;line-height:1.2;border-radius:6px;color:#d32f2f;border-color:#ffcdd2;cursor:pointer;" title="${isPending ? 'Cancel invitation' : 'Remove member from team'}">${isPending ? 'Cancel' : 'Remove'}</button>`);
+    }
+    if (parts.length) {
+      rightContent = `<div class="member-actions" style="display:flex;align-items:center;gap:6px;margin-left:auto;">${parts.join('')}</div>`;
+    }
+  }
 
-    return `<div class="member-row" style="${isPending ? 'background:#faf9fe;border-radius:8px;padding:6px 10px;margin-bottom:6px;border:1px dashed #dedaf5;' : ''}">
-      <div class="avatar ${member.color || ''}" style="${isPending ? 'opacity:0.75;' : ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
-      <div class="member-details">
-        <div class="member-name">${escapeHtml(member.name)}</div>
-        <div class="member-role">${escapeHtml(member.role)}${isPending ? ' · Awaiting student acceptance' : ''}</div>
+  return `<div class="member-row" style="${isPending ? 'background:#faf9fe;border-radius:8px;padding:6px 10px;margin-bottom:6px;border:1px dashed #dedaf5;' : ''}">
+    <div class="avatar ${member.color || ''}" style="${isPending ? 'opacity:0.75;' : ''}">${escapeHtml(member.initials || getInitials(member.name))}</div>
+    <div class="member-details">
+      <div class="member-name">${escapeHtml(member.name)}</div>
+      <div class="member-role">${escapeHtml(member.role)}${isPending ? ' · Awaiting student acceptance' : ''}</div>
+    </div>
+    ${rightContent}
+  </div>`;
+}
+
+function membersList() {
+  const accepted = state.members.filter(m => m.status !== 'pending');
+  const pending = state.members.filter(m => m.status === 'pending');
+
+  let html = '';
+  if (accepted.length) {
+    html += accepted.map(renderMemberRow).join("");
+  } else {
+    html += '<div class="empty-state" style="padding:10px 0;">No active members yet.</div>';
+  }
+
+  if (pending.length) {
+    html += `
+      <div class="pending-members-section" style="margin-top:14px;padding-top:12px;border-top:1px dashed #dedaf5;">
+        <div style="font-size:11px;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span>Pending Invitations (${pending.length})</span>
+          <span style="font-size:10px;font-weight:500;color:#8f95b2;text-transform:none;">— awaiting student acceptance</span>
+        </div>
+        ${pending.map(renderMemberRow).join("")}
       </div>
-      ${rightContent}
-    </div>`;
-  }).join("");
+    `;
+  }
+
+  return html;
 }
 
 function queriesList() {
@@ -441,7 +465,7 @@ function studentOverview() {
     </article>
     <article class="stat-card">
       <div class="stat-top"><span>Team members</span><span class="stat-icon blue">${icons.people}</span></div>
-      <div class="stat-value">${state.members.length.toString().padStart(2, "0")}</div>
+      <div class="stat-value">${state.members.filter(m => m.status !== 'pending').length.toString().padStart(2, "0")}</div>
       <div class="stat-note">Everyone’s on the same page</div>
     </article>
   </section>
@@ -708,7 +732,7 @@ function projectsPage() {
 function teamPage() {
   const acceptedMembers = state.members.filter(m => m.status !== 'pending');
   const pendingMembers = state.members.filter(m => m.status === 'pending');
-  const countLabel = `${acceptedMembers.length} ${acceptedMembers.length === 1 ? 'member' : 'members'}${pendingMembers.length ? ` · ${pendingMembers.length} pending` : ''}`;
+  const countLabel = `${acceptedMembers.length} active ${acceptedMembers.length === 1 ? 'member' : 'members'}${pendingMembers.length ? ` · ${pendingMembers.length} pending invitation${pendingMembers.length > 1 ? 's' : ''}` : ''}`;
 
   return `<div class="page-heading">
     <div>
