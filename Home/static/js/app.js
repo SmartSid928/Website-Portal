@@ -28,9 +28,11 @@ function getCookie(name) {
 }
 
 function getCsrfToken() {
+  const cookieToken = getCookie('csrftoken');
+  if (cookieToken) return cookieToken;
   const meta = document.querySelector('meta[name="csrf-token"]');
   if (meta && meta.content) return meta.content;
-  return getCookie('csrftoken') || '';
+  return '';
 }
 
 async function apiFetch(url, options = {}) {
@@ -1138,22 +1140,29 @@ function addMemberModal() {
     async formData => {
       const email = String(formData.get("email") || "").trim();
       const role = String(formData.get("role") || "Project contributor");
+      if (!email) return;
+
       try {
         const res = await apiFetch('/api/team/add-member/', {
           method: 'POST',
           body: JSON.stringify({ email, role })
         });
-        const data = await res.json();
-        if (data.success && data.member) {
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = { error: "Unable to process invitation response." };
+        }
+        if (res.ok && data.success && data.member) {
           state.members.push(data.member);
           closeModal();
           render();
-          showToast(`Teammate added: ${email}`);
+          showToast(data.message || `Invitation sent to ${email}!`);
         } else {
           showToast(data.error || "Failed to add teammate.");
         }
       } catch (err) {
-        showToast("Error connecting to server.");
+        showToast("Error connecting to server. Please try again.");
       }
     }
   );
@@ -1536,6 +1545,11 @@ document.getElementById("authForm").addEventListener("submit", async event => {
     if (!res.ok || !data.success) {
       error.textContent = data.error || "Authentication failed. Please check your credentials.";
       return;
+    }
+
+    if (data.csrfToken) {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) meta.content = data.csrfToken;
     }
 
     // Success! Load workspace from Django

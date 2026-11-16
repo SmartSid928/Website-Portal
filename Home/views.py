@@ -8,8 +8,11 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.middleware.csrf import get_token
+from django.core.mail import send_mail
+from django.conf import settings
 from django.utils import timezone
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 
 from .models import (
     UserProfile,
@@ -176,34 +179,47 @@ def api_signup(request):
         team_name=team_name
     )
 
-    # If student, set up Team and Leader Member
+    # If student, set up Team or join invited Team
+    welcome_msg = f"Hi {name}, your {role} workspace is ready. Explore projects, team collaboration, and teacher queries."
     if role == "student":
-        team = Team.objects.create(
-            name=team_name or f"{name}'s Team",
-            created_by=user
-        )
-        is_leader = post != "Team member"
-        TeamMember.objects.create(
-            team=team,
-            name=name,
-            email=email,
-            role=post or "Team leader",
-            color="blue",
-            is_leader=is_leader
-        )
+        existing_invite = TeamMember.objects.filter(email__iexact=email).select_related("team").first()
+        if existing_invite and existing_invite.team:
+            team = existing_invite.team
+            profile.team_name = team.name
+            profile.post = existing_invite.role or "Project contributor"
+            profile.save(update_fields=['team_name', 'post'])
+            existing_invite.name = name
+            existing_invite.save(update_fields=['name'])
+            welcome_msg = f"Hi {name}, you have joined team '{team.name}'. Explore your team projects and workspace."
+        else:
+            team = Team.objects.create(
+                name=team_name or f"{name}'s Team",
+                created_by=user
+            )
+            is_leader = post != "Team member"
+            TeamMember.objects.create(
+                team=team,
+                name=name,
+                email=email,
+                role=post or "Team leader",
+                color="blue",
+                is_leader=is_leader
+            )
 
     # Welcome notification
     create_notification(
         user,
         "Welcome to Idea!",
-        f"Hi {name}, your {role} workspace is ready. Explore projects, team collaboration, and teacher queries.",
+        welcome_msg,
         notification_type="system"
     )
 
     login(request, user)
+    csrf_token = get_token(request)
 
-    return JsonResponse({
+    res = JsonResponse({
         "success": True,
+        "csrfToken": csrf_token,
         "user": {
             "name": profile.display_name,
             "email": user.email,
@@ -213,6 +229,8 @@ def api_signup(request):
             "teamName": profile.team_name,
         }
     })
+    res.set_cookie("csrftoken", csrf_token, samesite="Lax")
+    return res
 
 
 @csrf_exempt
@@ -243,9 +261,11 @@ def api_login(request):
 
     login(request, user)
     profile = _get_user_profile(user)
+    csrf_token = get_token(request)
 
-    return JsonResponse({
+    res = JsonResponse({
         "success": True,
+        "csrfToken": csrf_token,
         "user": {
             "name": profile.display_name if profile else (user.get_full_name() or user.username),
             "email": user.email,
@@ -255,6 +275,8 @@ def api_login(request):
             "teamName": profile.team_name if profile else "",
         }
     })
+    res.set_cookie("csrftoken", csrf_token, samesite="Lax")
+    return res
 
 
 @csrf_exempt
@@ -337,11 +359,24 @@ def api_workspace_data(request):
         })
 
     # Student workspace
-    team = Team.objects.filter(created_by=request.user).prefetch_related("members").first()
-    if not team:
+    # Locate active team:
+    # 1. First check if user was invited to a team created by another user
+    invited_record = TeamMember.objects.filter(email__iexact=request.user.email).select_related("team").exclude(team__created_by=request.user).first()
+    # 2. Or a team created by the user
+    created_team = Team.objects.filter(created_by=request.user).prefetch_related("members").first()
+
+    if invited_record and invited_record.team:
+        team = invited_record.team
+    elif created_team:
+        team = created_team
+    else:
         member_record = TeamMember.objects.filter(email__iexact=request.user.email).select_related("team").first()
-        if member_record:
-            team = member_record.team
+        team = member_record.team if member_record else None
+
+    # Keep profile team_name in sync with active team
+    if team and profile.team_name != team.name:
+        profile.team_name = team.name
+        profile.save(update_fields=['team_name'])
 
     team_name = team.name if team else (profile.team_name or "Your team")
     members_list = []
@@ -365,7 +400,12 @@ def api_workspace_data(request):
             "leader": profile.post != "Team member",
         }]
 
-    my_submissions = ProjectSubmission.objects.filter(owner=request.user).order_by("-submitted_at")
+    if team:
+        my_submissions = ProjectSubmission.objects.filter(
+            Q(owner=request.user) | Q(team=team)
+        ).distinct().order_by("-submitted_at")
+    else:
+        my_submissions = ProjectSubmission.objects.filter(owner=request.user).order_by("-submitted_at")
     submissions_list = [_serialize_submission(sub) for sub in my_submissions]
 
     my_queries = Query.objects.filter(asked_by=request.user).order_by("-created_at")
@@ -581,9 +621,10 @@ def api_review_project(request, project_id):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def api_add_teammate(request):
-    """Invites a teammate to the student's team."""
+    """Invites a teammate to the student's team, with in-app notification, team chat broadcast, and email."""
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
@@ -593,39 +634,112 @@ def api_add_teammate(request):
 
     try:
         data = json.loads(request.body)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         data = request.POST
 
-    email = str(data.get("email") or "").strip()
+    email = str(data.get("email") or "").strip().lower()
     role = str(data.get("role") or "Project contributor").strip()
 
     if not email:
         return JsonResponse({"success": False, "error": "Email is required."}, status=400)
 
-    # Get or create team
+    if "@" not in email or "." not in email:
+        return JsonResponse({"success": False, "error": "Please enter a valid email address."}, status=400)
+
+    if email == request.user.email.lower():
+        return JsonResponse({"success": False, "error": "You are already leading this team."}, status=400)
+
+    # Get active team (created by user or where user is member)
     team = Team.objects.filter(created_by=request.user).first()
+    if not team:
+        lead_member = TeamMember.objects.filter(email__iexact=request.user.email, is_leader=True).select_related("team").first()
+        if lead_member:
+            team = lead_member.team
+        else:
+            any_member = TeamMember.objects.filter(email__iexact=request.user.email).select_related("team").first()
+            team = any_member.team if any_member else None
+
     if not team:
         team = Team.objects.create(
             name=profile.team_name or f"{profile.display_name}'s Team",
             created_by=request.user
         )
 
-    # Derive clean name from email
-    name = email.split("@")[0].replace(".", " ").replace("-", " ").replace("_", " ").title()
+    # Prevent duplicate member in team
+    existing_member = team.members.filter(email__iexact=email).first()
+    if existing_member:
+        return JsonResponse({
+            "success": False,
+            "error": f"{existing_member.name} ({email}) is already in {team.name}."
+        }, status=400)
+
+    # Check if target user exists on platform
+    invited_user = User.objects.filter(email__iexact=email).first()
+    if invited_user:
+        invited_name = invited_user.get_full_name() or invited_user.first_name or email.split("@")[0].title()
+        invited_profile = _get_user_profile(invited_user)
+        if invited_profile:
+            invited_profile.team_name = team.name
+            invited_profile.post = role
+            invited_profile.save(update_fields=['team_name', 'post'])
+    else:
+        invited_name = email.split("@")[0].replace(".", " ").replace("-", " ").replace("_", " ").title()
+
     colors = ["blue", "green", "orange", "rose"]
     color = colors[team.members.count() % 4]
 
     member = TeamMember.objects.create(
         team=team,
-        name=name,
+        name=invited_name,
         email=email,
         role=role,
         color=color,
         is_leader=False
     )
 
+    # 1. Dispatch in-app notification if user is registered
+    if invited_user:
+        create_notification(
+            invited_user,
+            f"Team Invitation: {team.name}",
+            f"{profile.display_name} has invited you to join team '{team.name}' as {role}.",
+            notification_type="team",
+            link_page="team"
+        )
+
+    # 2. Post broadcast announcement in team chat
+    ChatMessage.objects.create(
+        thread="team",
+        sender=request.user,
+        sender_name=profile.display_name,
+        color="blue",
+        text=f"📢 Invited {invited_name} ({email}) to join our team as {role}."
+    )
+
+    # 3. Send email invite (fail_silently so missing SMTP never blocks user)
+    try:
+        from django.core.mail import send_mail
+        subject = f"You have been invited to join team '{team.name}' on Idea"
+        message = (
+            f"Hello {invited_name},\n\n"
+            f"{profile.display_name} has invited you to join team '{team.name}' as a {role} on the Idea Student Project Portal.\n\n"
+            f"To collaborate on projects and join your team, log in or sign up with this email ({email}) at:\n"
+            f"https://website-portal-pied.vercel.app\n\n"
+            f"Best regards,\nIdea Platform"
+        )
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@idea.app'),
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as mail_err:
+        logger.warning(f"Failed to send email invite to {email}: {mail_err}")
+
     return JsonResponse({
         "success": True,
+        "message": f"Invitation sent to {email} successfully!",
         "member": {
             "id": member.id,
             "name": member.name,

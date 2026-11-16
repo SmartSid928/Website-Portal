@@ -164,6 +164,11 @@ class IdeaAppTests(TestCase):
         self.assertTrue(res.json()["success"])
         self.assertEqual(res.json()["member"]["name"], "Alex Smith")
 
+        # Verify chat announcement was created
+        chat_msg = ChatMessage.objects.filter(thread="team").last()
+        self.assertIsNotNone(chat_msg)
+        self.assertIn("Alex Smith", chat_msg.text)
+
         # Ask question
         res_q = self.client.post("/api/queries/create/", data=json.dumps({
             "subject": "Due date question",
@@ -171,6 +176,107 @@ class IdeaAppTests(TestCase):
         }), content_type="application/json")
         self.assertEqual(res_q.status_code, 200)
         self.assertTrue(res_q.json()["success"])
+
+    def test_invite_teammate_already_registered_user(self):
+        # Create student 1 (team leader)
+        self._create_student("leader@example.com", "Leader Jane", "Rocket Team")
+
+        # Create student 2
+        c2 = Client()
+        c2.post("/api/auth/signup/", data=json.dumps({
+            "name": "Member Sam",
+            "email": "sam@example.com",
+            "password": "Password123!",
+            "role": "student",
+            "post": "Team member",
+            "department": "Engineering",
+            "teamName": "Rocket Team"
+        }), content_type="application/json")
+
+        # Leader invites Sam
+        res_inv = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "sam@example.com",
+            "role": "Frontend developer"
+        }), content_type="application/json")
+        self.assertEqual(res_inv.status_code, 200)
+        self.assertTrue(res_inv.json()["success"])
+
+        # Verify Sam received an in-app ActivityNotification
+        sam_user = User.objects.get(email="sam@example.com")
+        notif = ActivityNotification.objects.filter(user=sam_user, notification_type="team").first()
+        self.assertIsNotNone(notif)
+        self.assertIn("Rocket Team", notif.title)
+
+        # Verify Sam's workspace now reflects Rocket Team
+        res_ws = c2.get("/api/workspace/")
+        self.assertEqual(res_ws.status_code, 200)
+        ws_data = res_ws.json()
+        self.assertEqual(ws_data["teamName"], "Rocket Team")
+        member_emails = [m.get("email", "") for m in ws_data["members"]]
+        self.assertIn("Rocket Team", ws_data["teamName"])
+
+    def test_invite_teammate_signs_up_after_invite(self):
+        # Leader creates Rocket Team
+        self._create_student("alpha@example.com", "Alpha Leader", "Alpha Team")
+
+        # Leader invites user who has not registered yet
+        res_inv = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "future_student@example.com",
+            "role": "Research & content"
+        }), content_type="application/json")
+        self.assertEqual(res_inv.status_code, 200)
+        self.assertTrue(res_inv.json()["success"])
+
+        # Future student now signs up
+        c_future = Client()
+        res_signup = c_future.post("/api/auth/signup/", data=json.dumps({
+            "name": "Future Student",
+            "email": "future_student@example.com",
+            "password": "Password123!",
+            "role": "student",
+            "post": "Team member",
+            "department": "Design",
+            "teamName": ""
+        }), content_type="application/json")
+        self.assertEqual(res_signup.status_code, 200)
+
+        # Future student workspace should belong to Alpha Team
+        res_ws = c_future.get("/api/workspace/")
+        self.assertEqual(res_ws.status_code, 200)
+        self.assertEqual(res_ws.json()["teamName"], "Alpha Team")
+
+    def test_invite_validations(self):
+        self._create_student("boss@example.com", "Boss", "Boss Team")
+
+        # Self-invite should fail
+        res_self = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "boss@example.com",
+            "role": "Project contributor"
+        }), content_type="application/json")
+        self.assertEqual(res_self.status_code, 400)
+        self.assertIn("already leading", res_self.json()["error"])
+
+        # Invalid email
+        res_bad = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "invalidemail",
+            "role": "Project contributor"
+        }), content_type="application/json")
+        self.assertEqual(res_bad.status_code, 400)
+
+        # First invite succeeds
+        res_ok = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "member1@example.com",
+            "role": "UI / UX designer"
+        }), content_type="application/json")
+        self.assertEqual(res_ok.status_code, 200)
+
+        # Duplicate invite fails
+        res_dup = self.client.post("/api/team/add-member/", data=json.dumps({
+            "email": "member1@example.com",
+            "role": "UI / UX designer"
+        }), content_type="application/json")
+        self.assertEqual(res_dup.status_code, 400)
+        self.assertIn("already in", res_dup.json()["error"])
 
     def test_teacher_workflow(self):
         # Student creates account, project, teammate, and query

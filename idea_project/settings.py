@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '*']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.vercel.app',
+    'https://website-portal-pied.vercel.app',
     'https://*.now.sh',
     'http://127.0.0.1',
     'http://localhost',
@@ -179,8 +180,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 try:
     import whitenoise  # noqa: F401
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    WHITENOISE_USE_FINDERS = True
 except ImportError:
     pass
+
+# Email settings
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Idea Student Portal <noreply@idea.app>')
 
 # Media files (uploaded project files)
 MEDIA_URL = '/media/'
