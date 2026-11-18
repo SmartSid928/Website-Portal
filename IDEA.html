@@ -14,6 +14,9 @@
       --line: #eceef4;
       --paper: #fff;
       --canvas: #f7f8fc;
+      --table-bg: #fff;
+      --table-header-bg: #f5f9ff;
+      --table-row-hover: #effbfc;
       --purple: #007f91;
       --purple-dark: #006b7a;
       --purple-soft: #e2f9fc;
@@ -111,6 +114,8 @@
       width: 35px; height: 35px; border-radius: 50%; display: grid; place-items: center;
       color: #087586; background: #daf6f9; font-weight: 750; font-size: 11px; flex: 0 0 auto;
     }
+    .avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+    .profile-avatar-preview { width: 64px; height: 64px; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 50%; object-fit: cover; }
     .avatar.blue { color: #397c91; background: #e5f4f7; }
     .avatar.orange { color: #a06e35; background: #fff0dc; }
     .avatar.green { color: #328165; background: #e5f5ee; }
@@ -158,6 +163,8 @@
     .content { width: min(1190px, 100%); margin: 0 auto; padding: 32px 39px 48px; }
     .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 26px; }
     .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--purple); font-weight: 800; margin: 0 0 7px; }
+    .teacher-projects-eyebrow { font-size: 22px; letter-spacing: .6px; }
+    .student-projects-eyebrow { font-family: "Transcity", "Segoe UI", sans-serif; font-size: 22px; letter-spacing: .6px; font-weight: 900; }
     h1 { margin: 0; font-size: clamp(24px, 2.4vw, 29px); line-height: 1.18; letter-spacing: -1px; font-weight: 750; }
     .page-subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
     .button-primary, .button-secondary {
@@ -245,6 +252,11 @@
     .projects-list { padding: 0 18px 5px; }
     .project-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #f1f2f6; }
     .project-progress { flex: 0 0 auto; border: 0; border-radius: 8px; padding: 7px 9px; font-size: 9px; font-weight: 750; white-space: nowrap; }
+    .project-progress-select { cursor: pointer; padding-right: 22px; background: #fff; border: 1px solid var(--line); }
+    .project-progress-select.not-started { background: #fff; border-color: #b64045; color: #b64045; }
+    .project-progress-select.in-progress { background: #fff; border-color: #f2c94c; color: #51400a; }
+    .project-progress-select.completed { background: #fff; border-color: #258c68; color: #258c68; }
+    .project-progress-select option { background: #fff; color: #1d2340; }
     .project-progress.not-started { background: #b64045; color: #fff; }
     .project-progress.in-progress { background: #f2c94c; color: #51400a; }
     .project-progress.completed { background: #258c68; color: #fff; }
@@ -257,6 +269,13 @@
     .project-info { flex: 1; min-width: 0; }
     .project-name { font-size: 11px; font-weight: 700; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .project-meta { color: var(--muted); font-size: 9px; }
+    .project-progress-bar { display: flex; align-items: center; gap: 8px; max-width: 240px; margin-top: 7px; }
+    .project-progress-track { flex: 1; height: 6px; overflow: hidden; border-radius: 999px; background: var(--line); }
+    .project-progress-fill { height: 100%; border-radius: inherit; transition: width .2s ease; }
+    .project-progress-bar.not-started .project-progress-fill { background: #b64045; }
+    .project-progress-bar.in-progress .project-progress-fill { background: #f2c94c; }
+    .project-progress-bar.completed .project-progress-fill { background: #258c68; }
+    .project-progress-percent { min-width: 28px; color: var(--muted); font-size: 9px; font-weight: 700; text-align: right; }
     .teacher-remark { margin-top: 12px; padding: 13px 15px; border: 1px solid var(--line); border-left: 4px solid var(--purple); border-radius: 9px; background: var(--purple-soft); color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.55; }
     .teacher-remark strong { display: block; margin-bottom: 5px; color: var(--purple-dark); font-size: 12px; font-weight: 800; }
     .status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 5px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; }
@@ -266,13 +285,29 @@
     .status.draft { background: #f1f2f6; color: #82889a; }
     .query-list { padding: 0 17px 12px; }
     .query-item { display: flex; gap: 9px; border-top: 1px solid #f1f2f6; padding: 10px 0; }
+    .query-item-clickable { cursor: pointer; border-radius: 8px; padding: 11px 9px; }
+    .query-item-clickable:hover, .query-item-clickable:focus-visible { background: var(--canvas); }
+    .query-item-clickable:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+    .query-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; }
     .query-bullet { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; margin-top: 4px; background: var(--orange); }
     .query-bullet.answered { background: var(--green); }
     .query-copy { min-width: 0; flex: 1; }
     .query-title { font-size: 10px; font-weight: 650; line-height: 1.4; }
     .query-meta { margin-top: 4px; color: var(--muted); font-size: 9px; }
-    .empty-state { padding: 25px 12px; text-align: center; color: var(--muted); font-size: 11px; }
-    .field:focus, .textarea:focus { border-color: #62cbd8; box-shadow: 0 0 0 3px rgba(0,188,212,.16); }
+    .data-project-list { display: grid; gap: 12px; padding: 0 18px 18px; }
+    .data-project-card { border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; padding: 12px; }
+    .data-project-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: var(--muted); font-size: 10px; }
+    .data-project-header strong { color: var(--ink); font-size: 11px; }
+    .data-table-wrap { overflow: auto; max-height: 340px; border: 1px solid var(--line); border-radius: 8px; background: var(--table-bg); }
+    .data-table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 11px; background: var(--table-bg); }
+    .data-table th, .data-table td { border: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+    .data-table th { background: var(--table-header-bg); color: var(--ink); font-weight: 700; }
+    .data-table td { color: var(--ink); }
+    .data-table tbody tr[data-topic-select] { cursor: pointer; }
+    .data-table tbody tr[data-topic-select]:hover td,
+    .data-table tbody tr[data-topic-select]:focus td { background: var(--table-row-hover); }
+    .data-table tbody tr[data-topic-select]:focus { outline: 2px solid var(--purple); outline-offset: -2px; }
+    .empty-state { padding: 25px 12px; text-align: center; color: var(--muted); font-size: 11px; }    .field:focus, .textarea:focus { border-color: #62cbd8; box-shadow: 0 0 0 3px rgba(0,188,212,.16); }
     .toolbar { display: flex; align-items: center; gap: 9px; }
     .select-filter { min-height: 35px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #747b91; font-size: 10px; }
     .search-box {
@@ -293,15 +328,25 @@
     .teacher-project-info { flex: 1; min-width: 0; }
     .teacher-project .button-secondary { margin-left: 0; min-height: 33px; font-size: 10px; }
     .team-card { margin-bottom: 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); box-shadow: 0 4px 14px rgba(37,45,80,.035); overflow: hidden; }
+    .team-card[data-team-description-toggle] { cursor: pointer; }
+    .team-upload-picker, .upload-type-picker { display: grid; gap: 12px; }
+    .team-upload-option-list { display: grid; gap: 10px; }
+    .team-upload-option, .upload-type-option { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+    .team-upload-option:hover, .upload-type-option:hover { border-color: var(--purple); background: var(--purple-soft); transform: translateY(-1px); }
+    .upload-type-option { min-height: 60px; font-size: 12px; font-weight: 750; }
+    .team-upload-avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, #13b3d9, #7a6af8); color: #fff; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+    .team-upload-copy { display: grid; gap: 2px; min-width: 0; }
+    .team-upload-copy strong { font-size: 12px; overflow-wrap: anywhere; }
+    .team-upload-copy span { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+    .team-description-box { margin: 0 18px 14px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--purple); border-radius: 9px; background: var(--canvas); color: var(--ink); font-size: 13px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
     .team-card-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; }
     .team-card-summary { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
     .team-profile-badge { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #13b3d9, #7a6af8); border: 1px solid rgba(255,255,255,.45); box-shadow: 0 8px 18px rgba(0,188,212,.18); display: grid; place-items: center; }
     .team-profile-badge img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .team-profile-badge .team-profile-initials { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: #fff; }
     .team-card-heading { min-width: 0; flex: 1; }
-    .team-card-heading .panel-title { margin-bottom: 4px; }
+    .team-card-heading .panel-title { display: table; max-width: 100%; margin-bottom: 4px; padding: 5px 8px; border-radius: 7px; background: var(--purple-soft); color: var(--purple-dark); font-weight: 800; overflow-wrap: anywhere; }
     .team-card-heading .panel-description { margin-top: 0; }
-    .team-card-summary .team-intro { margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
     .team-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
     .team-section { padding: 14px 18px; border-top: 1px solid var(--line); }
     .team-photo-preview { margin-top: 12px; width: min(180px, 100%); aspect-ratio: 1; border: 1px solid var(--line); border-radius: 12px; background: var(--canvas); overflow: hidden; }
@@ -315,6 +360,13 @@
     .team-member-copy strong { font-size: 11px; overflow-wrap: anywhere; }
     .team-member-copy span, .team-member-status { color: var(--muted); font-size: 9px; overflow-wrap: anywhere; }
     .team-project-list { padding: 0 18px 8px; }
+    .team-shared-projects { display: grid; gap: 8px; }
+    .team-shared-project { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
+    .team-shared-project-copy { display: grid; gap: 3px; flex: 1; min-width: 0; }
+    .team-shared-project-copy strong { font-size: 11px; overflow-wrap: anywhere; }
+    .team-shared-project-copy span { color: var(--muted); font-size: 9px; overflow-wrap: anywhere; }
+    .team-shared-project-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .team-shared-project-actions .button-secondary { min-height: 30px; padding: 0 9px; font-size: 9px; }
     .team-invitation { border-color: #b6e8ed; }
     .chat-workspace { display: grid; grid-template-columns: minmax(180px, 245px) minmax(0, 1fr); gap: 14px; align-items: stretch; }
     .chat-contact-panel { padding: 9px; }
@@ -339,6 +391,17 @@
     .chat-composer { display: flex; align-items: flex-end; gap: 9px; padding: 12px; border-top: 1px solid var(--line); }
     .chat-composer .textarea { flex: 1; min-width: 0; width: auto; min-height: 42px; max-height: 110px; resize: vertical; }
     .chat-composer .button-primary { min-height: 40px; }
+    .chat-attachment-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .chat-upload-button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); color: var(--ink); font-size: 10px; font-weight: 700; cursor: pointer; }
+    .chat-upload-button:hover { border-color: var(--purple); background: var(--purple-soft); }
+    .chat-upload-button input { display: none; }
+    .chat-attachment-label { display: inline-flex; align-items: center; max-width: 170px; padding: 0 8px; border-radius: 9px; font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-message-bubble { display: grid; gap: 8px; }
+    .chat-attachment { display: grid; gap: 8px; }
+    .chat-attachment img { display: block; max-width: min(240px, 100%); border-radius: 8px; border: 1px solid rgba(126,117,255,.28); }
+    .chat-attachment-file { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(122,106,248,.08); color: var(--ink); text-decoration: none; font-size: 10px; font-weight: 700; }
+    .chat-bubble { padding: 9px 11px; border-radius: 11px 11px 11px 3px; background: var(--canvas); color: var(--ink); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .chat-message.mine .chat-bubble { border-radius: 11px 11px 3px 11px; background: var(--purple); color: #fff; }
     @media (max-width: 720px) { .chat-workspace { grid-template-columns: minmax(0, 1fr); } .chat-contact-list { display: flex; overflow-x: auto; } .chat-contact { min-width: 165px; } .chat-panel { min-height: 370px; } .chat-message-list { min-height: 240px; max-height: 50vh; } }
     .project-detail-actions .status { margin-right: auto; }
     .project-title-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 0; background: transparent; padding: 0; color: var(--ink); font-size: 14px; font-weight: 750; text-align: left; cursor: pointer; }
@@ -365,7 +428,7 @@
     .toast { position: fixed; right: 23px; bottom: 23px; z-index: 20; padding: 11px 15px; color: #fff; background: #282d49; border-radius: 10px; box-shadow: 0 8px 26px rgba(20,25,48,.2); font-size: 11px; opacity: 0; transform: translateY(10px); pointer-events: none; transition: .2s ease; }
     .toast.show { opacity: 1; transform: translateY(0); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(24,28,50,.38); display: grid; place-items: center; z-index: 10; padding: 18px; }
-    .modal { width: min(440px, 100%); background: #fff; border-radius: 15px; padding: 22px; box-shadow: 0 20px 70px rgba(21,24,49,.24); animation: appear .16s ease-out; }
+    .modal { width: min(560px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; background: #fff; border-radius: 15px; padding: 22px; box-shadow: 0 20px 70px rgba(21,24,49,.24); animation: appear .16s ease-out; }
     @keyframes appear { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 17px; }
     .modal-title { font-size: 16px; font-weight: 750; margin: 0; }
@@ -374,6 +437,10 @@
     .field-label { display: block; color: #5f6680; font-size: 10px; font-weight: 700; margin: 12px 0 6px; }
     .field, .textarea { display: block; width: 100%; border: 1px solid #e8eaf1; border-radius: 8px; outline: 0; padding: 10px 11px; color: var(--ink); background: #fff; font-size: 11px; }
     .textarea { resize: vertical; min-height: 89px; line-height: 1.5; }
+    .query-detail-content { display: grid; gap: 8px; }
+    .query-detail-label { margin: 8px 0 0; color: var(--muted); font-size: 11px; font-weight: 750; }
+    .query-detail-text { padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); color: var(--ink); font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .query-detail-text.answer { border-left: 4px solid var(--green); }
     .drop-zone { display: block; min-width: 0; border: 1px dashed #a9e3ea; background: #f2fcfd; border-radius: 10px; text-align: center; padding: 18px 12px; margin-top: 13px; color: #777e96; font-size: 10px; line-height: 1.5; cursor: pointer; }
     .drop-zone svg { width: 21px; height: 21px; color: var(--purple); display: block; margin: 0 auto 7px; }
     .drop-zone strong { display: block; color: var(--ink); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; margin-bottom: 4px; }
@@ -394,8 +461,8 @@
     .auth-tabs button.active { background: white; color: var(--purple-dark); box-shadow: 0 2px 7px rgba(0,95,110,.1); }
     .auth-error { min-height: 16px; color: var(--red); font-size: 10px; margin-top: 8px; }
     .auth-card .button-primary { width: 100%; margin-top: 10px; }
-    html[data-theme="ambient"] { color-scheme: light; --ink:#453f36; --muted:#6f6559; --line:#e3d8c9; --paper:#fffaf2; --canvas:#f4ecdf; --purple:#007f91; --purple-dark:#006b7a; --purple-soft:#e1f7f8; --green:#356c55; --green-soft:#e4f0e6; --orange:#8a591e; --orange-soft:#f8ead8; }
-    html[data-theme="night"] { color-scheme: dark; --ink:#e8eaf0; --muted:#a2a9b7; --line:#343c49; --paper:#1d2430; --canvas:#141a23; --purple:#55d9e8; --purple-dark:#a2f1f8; --purple-soft:#173b43; --green:#6fc5a0; --green-soft:#20392f; --orange:#e0aa62; --orange-soft:#3a3022; --red:#e88989; }
+    html[data-theme="ambient"] { color-scheme: light; --ink:#453f36; --muted:#6f6559; --line:#e3d8c9; --paper:#fffaf2; --canvas:#f4ecdf; --table-bg:#fffaf2; --table-header-bg:#ece3d5; --table-row-hover:#e6f4f2; --purple:#007f91; --purple-dark:#006b7a; --purple-soft:#e1f7f8; --green:#356c55; --green-soft:#e4f0e6; --orange:#8a591e; --orange-soft:#f8ead8; }
+    html[data-theme="night"] { color-scheme: dark; --ink:#e8eaf0; --muted:#a2a9b7; --line:#343c49; --paper:#1d2430; --canvas:#141a23; --table-bg:#1d2430; --table-header-bg:#283341; --table-row-hover:#253540; --purple:#55d9e8; --purple-dark:#a2f1f8; --purple-soft:#173b43; --green:#6fc5a0; --green-soft:#20392f; --orange:#e0aa62; --orange-soft:#3a3022; --red:#e88989; }
     html[data-theme="night"] body, html[data-theme="ambient"] body { background: var(--canvas); color: var(--ink); }
     html[data-theme="night"] .sidebar, html[data-theme="ambient"] .sidebar { background: var(--paper); border-color: var(--line); }
     html[data-theme="night"] .brand-mark { background: #007f91; box-shadow: 0 6px 16px rgba(0,188,212,.3); }
@@ -521,8 +588,9 @@
       </div>
       <div class="workspace-label">Workspace</div>
       <nav class="nav-list" aria-label="Main navigation">
-        <button class="nav-item active" data-page="overview" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span>Overview</span></button>
+        <button class="nav-item active" data-page="overview" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></button>
         <button class="nav-item" data-page="projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h4l2 2h5A2.5 2.5 0 0 1 20 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-10Z"/><path d="M4.5 10h15"/></svg><span>My projects</span><span class="nav-count" data-count="projects">0</span></button>
+        <button class="nav-item" data-page="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Data</span></button>
         <button class="nav-item" data-page="teams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 20v-1.8a3.2 3.2 0 0 0-3.2-3.2H7.2A3.2 3.2 0 0 0 4 18.2V20"/><circle cx="10" cy="7.5" r="3.5"/><path d="M16 4.2a3.5 3.5 0 0 1 0 6.7M20 20v-1.8a3.2 3.2 0 0 0-2.4-3.1"/></svg><span>My team</span></button>
         <div class="nav-section-label" id="pingSectionLabel">Ping</div>
         <button class="nav-item" data-page="team-chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6.1A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg><span>Team chat</span></button>
@@ -545,7 +613,7 @@
 
     <main class="main-area">
       <header class="topbar">
-        <div class="breadcrumb"><span>Workspace</span><span>/</span><strong id="breadcrumbCurrent">Overview</strong></div>
+        <div class="breadcrumb"><span>Workspace</span><span>/</span><strong id="breadcrumbCurrent">Dashboard</strong></div>
         <div class="top-actions">
           <button class="icon-button" id="themeToggle" type="button" aria-label="Color mode: Light" title="Color mode: Light"><span id="themeIcon" aria-hidden="true">☼</span></button>
           <button class="icon-button" data-action="notifications" aria-label="Notifications"><span class="notification-dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>
@@ -571,19 +639,80 @@
     const activeEmail = localStorage.getItem("ideaSession");
     const savedAccount = activeEmail ? storedAccounts[activeEmail] : null;
     const savedWorkspace = savedAccount ? JSON.parse(localStorage.getItem(`ideaWorkspace:${savedAccount.email}`) || "null") : null;
+    const defaultTopicsSource = `Case,Title,Domain,Level,Team ID,Guide,Status
+H1,AI-Based Brain Aneurysm Triage on CT and MR Angiography,Healthcare,High,,,
+H2,Digitisation of Paper and Photographed ECGs with Arrhythmia Flagging,Healthcare,Moderate,,,
+H3,Safe Drug-Decision Assistant with Retrieval and Refusal,Healthcare,Moderate,,,
+H4,Hospital Antibiogram and Empiric-Antibiotic Guide,Healthcare,Moderate,,,
+H5,Seizure and Abnormal-EEG Detection across Patients,Healthcare,High,,,
+H6,Oral Cancer Screening from Pathology Slides and Mouth Photos,Healthcare,Moderate,,,
+H7,Voice Copilot for Frontline Health Workers,Healthcare,Moderate,,,
+H8,Early Disease-Trend Warning from AYUSH and OPD Records,Healthcare,Moderate,,,
+H9,Safe Health-Information Chatbot in Local Languages,Healthcare,Moderate,,,
+H10,PressureGuard: Smart Bedsore Prevention Mat,Healthcare,High,,,
+H11,Pesu: AI Speech-Therapy Coach in Tamil,Healthcare,High,,,
+C1,AI Energy Optimisation for Campus Buildings and Server Rooms,Climate,Moderate,,,
+C2,Hyperlocal Air-Quality Nowcasting for Chennai,Climate,Moderate,,,
+C3,Low-Cost Carbon Measurement for Tree-Planting Projects,Climate,Moderate,,,
+C4,Biodiversity Monitoring by Sound,Climate,Moderate,,,
+C5,Subsurface Imaging for Groundwater and Carbon Storage,Climate,Research,,,
+C6,Faster Discovery of Biodegradable Polymers,Climate,Research,,,
+A1,Fodder Biomass Estimation from Phone Photos,Agriculture,Moderate,,,
+A2,Membrane Fouling Prediction for Desalination and RO Plants,Agriculture,Moderate,,,
+A3,Post-Harvest Loss Reduction with Price and Arrival Forecasts,Agriculture,Moderate,,,
+A4,Crop Disease Detection from Field and Drone Images,Agriculture,Moderate,,,
+A5,Farmer Advisory by Voice in Tamil,Agriculture,Moderate,,,
+E1,Early Forest-Fire Detection from Cameras and Satellites,Disaster,Moderate,,,
+E2,Flood Extent Mapping with Satellite Radar,Disaster,Moderate,,,
+E3,Urban Heat Risk Mapping,Disaster,Moderate,,,
+E4,Land-Use Change Detection with an Earth-Observation Foundation Model,Disaster,Moderate,,,
+L1,Tamil Reading-Fluency Tutor,Education,Moderate,,,
+L2,Safety Benchmark for Chatbots in Indian Languages,Education,Moderate,,,
+L3,Indian Sign Language Word Recognition,Education,Moderate,,,
+L4,Dataset Citation Extraction from Research Papers,Education,Moderate,,,
+L5,EasyLearn: Easy-Read and Audio Study Material,Education,High,,,
+F1,Deepfake Detection for Video KYC and Voice Calls,Finance,High,,,
+F2,Image and Document Provenance Checker,Finance,Moderate,,,
+F3,Online Dispute Resolution Assistant for MSMEs,Finance,Moderate,,,
+F4,Vendor and Entity Matching across Registries,Finance,Moderate,,,
+S1,Automatic Bug Finding and Patching in Open-Source Code,Cybersecurity and AI Security,High,,,
+S2,Prompt-Injection and Data-Leak Guard for Company Chatbots,Cybersecurity and AI Security,Moderate,,,
+S3,Shadow-AI Discovery inside an Organisation,Cybersecurity and AI Security,Moderate,,,
+S4,Attack-Path Prediction for Campus Networks,Cybersecurity and AI Security,Moderate,,,
+M1,Maintenance Copilot for Plant Manuals,Manufacturing,Moderate,,,
+M2,Vision Inspection and Pick-and-Place on a Low-Cost Arm,Manufacturing,High,,,
+M3,Multi-Agent Procurement Assistant for MSMEs,Manufacturing,Moderate,,,
+M4,Supply-Disruption Early Warning for Exporters,Manufacturing,Moderate,,,
+M5,Software Bill of Materials and Vulnerability Links,Manufacturing,Moderate,,,
+P1,Road Condition and Pothole Mapping from Phone Video,Mobility,Moderate,,,
+P2,Citizen Grievance Routing,Mobility,Moderate,,,
+P3,Food-Safety Inspection Targeting,Mobility,Moderate,,,
+P4,Campus Guide Robot that Follows Spoken Instructions,Mobility,High,,,
+R1,Interactive Reasoning Agent for ARC-AGI,AI Reliability,Research,,,
+R2,Maths Reasoning with a Small Open Model,AI Reliability,Research,,,
+R3,Multimodal Search over Institutional Documents,AI Reliability,Moderate,,,
+R4,Small High-Quality Datasets for Tamil Vision-Language Models,AI Reliability,Research,,,
+R5,Fairness Audit of Face Detection and Recognition,AI Reliability,Moderate,,,
+R6,Tamil Science Benchmark for Small Language Models,AI Reliability,Moderate,,,
+R7,Claim Checker for Company Chatbots,AI Reliability,Moderate,,,`;
+    const storedDataRows = localStorage.getItem("ideaDataTable");
+    const savedDataRows = storedDataRows?.startsWith("Case Title,Domain,Level,Team ID,Guide,Status\n") ? defaultTopicsSource : storedDataRows;
+    if (storedDataRows && storedDataRows !== savedDataRows) localStorage.setItem("ideaDataTable", savedDataRows);
     const state = {
       role: savedAccount?.role || "student",
-      account: savedAccount ? { name: savedAccount.name, email: savedAccount.email, role: savedAccount.role, ...(savedAccount.role === "teacher" ? { post: savedAccount.post || "Administrator" } : {}), department: savedAccount.department || "", section: savedAccount.section || "" } : null,
+      account: savedAccount ? { name: savedAccount.name, email: savedAccount.email, role: savedAccount.role, avatar: savedAccount.avatar || "", ...(savedAccount.role === "teacher" ? { post: savedAccount.post || "Administrator" } : {}), department: savedAccount.department || "", section: savedAccount.section || "" } : null,
       page: "overview",
       projectSearch: "",
       activeTeamChatId: "",
       activeChatPeerEmail: "",
       projects: savedWorkspace?.projects || [],
       queries: savedWorkspace?.queries || [],
-      notifications: savedWorkspace?.notifications || defaultNotificationsForRole(savedAccount?.role || "student")
+      notifications: savedWorkspace?.notifications || defaultNotificationsForRole(savedAccount?.role || "student"),
+      dataRows: savedDataRows || defaultTopicsSource
     };
+    const activeTeamProjectUploads = new Set();
 
-    const pageNames = { overview: "Overview", projects: "My projects", queries: "Queries", teams: "My team", "team-chat": "Team chat", chat: "Chat" };
+    const pageNames = { overview: "Dashboard", projects: "My projects", data: "Data", queries: "Queries", teams: "My team", "team-chat": "Team chat", chat: "Chat" };
     const engineeringDepartments = [
       "CSE",
       "AI & DS",
@@ -624,11 +753,16 @@
 
     function projectProgressDetails(progress) {
       const progressStates = {
-        not_started: { label: "Not started", className: "not-started" },
-        in_progress: { label: "In progress", className: "in-progress" },
-        completed: { label: "Completed", className: "completed" }
+        not_started: { label: "Not started", className: "not-started", percent: 0 },
+        in_progress: { label: "In progress", className: "in-progress", percent: 50 },
+        completed: { label: "Completed", className: "completed", percent: 100 }
       };
       return Object.prototype.hasOwnProperty.call(progressStates, progress) ? progressStates[progress] : progressStates.not_started;
+    }
+
+    function projectProgressBar(project) {
+      const progress = projectProgressDetails(project.progress);
+      return `<div class="project-progress-bar ${progress.className}" role="progressbar" aria-label="${escapeHtml(project.name)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}" aria-valuetext="${progress.label}"><div class="project-progress-track"><div class="project-progress-fill" style="width:${progress.percent}%"></div></div><span class="project-progress-percent">${progress.percent}%</span></div>`;
     }
 
     function isProjectProgress(progress) {
@@ -638,6 +772,16 @@
     function projectProgressButton(project, target = "", interactive = true) {
       const progress = projectProgressDetails(project.progress);
       return `<button class="project-progress ${progress.className}" type="button" ${target} ${interactive ? "" : "disabled"} aria-label="Project progress: ${progress.label}${interactive ? ". Click to change." : ""}" title="${progress.label}">${progress.label}</button>`;
+    }
+
+    function projectProgressSelect(project, target) {
+      const progress = projectProgressDetails(project.progress);
+      const options = [
+        ["not_started", "Not started"],
+        ["in_progress", "In progress"],
+        ["completed", "Completed"]
+      ];
+      return `<select class="project-progress project-progress-select ${progress.className}" ${target} aria-label="Project progress for ${escapeHtml(project.name)}" title="${progress.label}">${options.map(([value, label]) => `<option value="${value}" ${project.progress === value ? "selected" : ""}>${label}</option>`).join("")}</select>`;
     }
 
     function updateProjectProgress(button) {
@@ -650,8 +794,17 @@
           showToast("This project could not be found.");
           return;
         }
-        const currentProgress = isProjectProgress(project.progress) ? project.progress : "not_started";
-        project.progress = progressCycle[currentProgress];
+        if (!isProjectProgress(button.value)) {
+          showToast("Choose a valid project progress.");
+          render();
+          return;
+        }
+        if (button.value === "completed" && !project.fileName) {
+          showToast("Attach a project file before marking it completed.");
+          render();
+          return;
+        }
+        project.progress = button.value;
         persistWorkspace();
       } else {
         const teams = getTeams();
@@ -671,11 +824,40 @@
     }
 
     function projectRow(project, progressTarget = "") {
-      return `<div class="project-row">${projectProgressButton(project, progressTarget, Boolean(progressTarget))}<div class="project-icon ${project.color}">${icons.file}</div><div class="project-info"><div class="project-name">${escapeHtml(project.name)}</div><div class="project-meta">${escapeHtml(project.type)} · ${escapeHtml(project.date)}</div>${project.remark ? `<div class="teacher-remark"><strong>Teacher remark</strong>${escapeHtml(project.remark)}</div>` : ""}</div><span class="status ${statusClass(project.status)}">${escapeHtml(project.status)}</span></div>`;
+      const progressControl = progressTarget.startsWith("data-personal-project-progress")
+        ? projectProgressSelect(project, progressTarget)
+        : projectProgressButton(project, progressTarget, Boolean(progressTarget));
+      return `<div class="project-row">${progressControl}<div class="project-icon ${project.color}">${icons.file}</div><div class="project-info"><div class="project-name">${escapeHtml(project.name)}</div><div class="project-meta">${escapeHtml(project.type)} · ${escapeHtml(project.date)}</div>${projectProgressBar(project)}${project.remark ? `<div class="teacher-remark"><strong>Teacher remark</strong>${escapeHtml(project.remark)}</div>` : ""}</div><span class="status ${statusClass(project.status)}">${escapeHtml(project.status)}</span></div>`;
     }
 
     function queriesList() {
-      return state.queries.map(query => `<div class="query-item"><span class="query-bullet ${query.answered ? "answered" : ""}"></span><div class="query-copy"><div class="query-title">${escapeHtml(query.title)}</div><div class="query-meta">${escapeHtml(query.meta)}</div></div></div>`).join("");
+      return state.queries.map((query, index) => `<div class="query-item query-item-clickable" data-open-query-index="${index}" role="button" tabindex="0" aria-label="Open question: ${escapeHtml(query.title)}"><span class="query-bullet ${query.answered ? "answered" : ""}"></span><div class="query-copy"><div class="query-title">${escapeHtml(query.title)}</div><div class="query-meta">${query.answered ? `Answered by ${escapeHtml(query.answeredBy || "Teacher")} · ${escapeHtml(formatQueryDate(query.answeredAt))}` : escapeHtml(query.meta || "Awaiting teacher reply")}</div></div><div class="query-actions"><button class="text-button" type="button" data-edit-query="${index}">Edit</button><button class="text-button" type="button" data-delete-query="${index}">Delete</button></div></div>`).join("");
+    }
+
+    function formatQueryDate(value) {
+      if (!value) return "Date not recorded";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? "Date not recorded"
+        : date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    }
+
+    function getStudentQueries() {
+      const accounts = getAccountRecords();
+      return Object.values(accounts).filter(account => account.role === "student").flatMap(account => {
+        const workspace = JSON.parse(localStorage.getItem(`ideaWorkspace:${account.email}`) || "null");
+        return (workspace?.queries || []).map((query, queryIndex) => ({
+          ...query,
+          ownerEmail: account.email,
+          studentName: account.name,
+          queryIndex
+        }));
+      });
+    }
+
+    function teacherQueriesList(queries = getStudentQueries()) {
+      if (!queries.length) return '<div class="empty-state">No student questions yet.</div>';
+      return queries.map(query => `<div class="query-item query-item-clickable" data-open-student-query="${escapeHtml(query.ownerEmail)}" data-query-index="${query.queryIndex}" role="button" tabindex="0" aria-label="Open question from ${escapeHtml(query.studentName)}: ${escapeHtml(query.title)}"><span class="query-bullet ${query.answered ? "answered" : ""}"></span><div class="query-copy"><div class="query-title">${escapeHtml(query.title)}</div><div class="query-meta">Submitted by ${escapeHtml(query.studentName)} · ${escapeHtml(formatQueryDate(query.submittedAt))}</div></div><button class="text-button" type="button" data-edit-student-answer="${escapeHtml(query.ownerEmail)}" data-query-index="${query.queryIndex}">${query.answered ? "Edit answer" : "Answer"}</button></div>`).join("");
     }
 
     function getNotifications() {
@@ -700,7 +882,19 @@
       showModal("Help center", "Quick answers for students and teachers.", body, "Thanks", () => closeModal());
     }
 
+    function readProfileImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("The image could not be read."));
+        reader.onerror = () => reject(reader.error || new Error("The image could not be read."));
+        reader.readAsDataURL(file);
+      });
+    }
+
     function editProfileModal() {
+      const maxAvatarSize = 1024 * 1024;
+      const imageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      let avatarImage = state.account.avatar || "";
       const positions = state.role === "teacher" ? ["Administrator", "Instructor"] : [];
       const selectedPost = positions.includes(state.account.post) ? state.account.post : positions[0];
       const profileProjects = state.role === "teacher" ? getStudentSubmissions() : state.projects;
@@ -712,7 +906,7 @@
       const positionField = state.role === "teacher"
         ? `<label class="field-label" for="profilePost">Position</label><select class="field" id="profilePost" name="post">${positions.map(position => `<option ${position === selectedPost ? "selected" : ""}>${escapeHtml(position)}</option>`).join("")}</select>`
         : "";
-      showModal("Profile details", "View and update your profile. Your email address cannot be changed.", `<label class="field-label" for="profileAccountType">Account type</label><input class="field" id="profileAccountType" value="${state.role === "teacher" ? "Teacher" : "Student"}" readonly><label class="field-label" for="profileEmail">Email</label><input class="field" id="profileEmail" type="email" value="${escapeHtml(state.account.email)}" readonly><label class="field-label" for="profileNameInput">Name</label><input class="field" id="profileNameInput" name="name" value="${escapeHtml(state.account.name)}" required>${positionField}${departmentField}<div class="profile-stats-summary">${completedProjects} completed · ${pendingProjects} pending</div><div style="margin-top:16px"><button class="button-danger" id="deleteProfileButton" type="button">Delete profile</button></div>`, "Save changes", formData => {
+      showModal("Profile details", "View and update your profile. Your email address cannot be changed.", `<img class="profile-avatar-preview" id="profileAvatarPreview" src="${escapeHtml(avatarImage)}" alt="Profile picture preview" ${avatarImage ? "" : "hidden"}><label class="field-label" for="profileAvatarInput">Profile picture</label><input class="field" id="profileAvatarInput" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><p class="project-meta">JPEG, PNG, WebP or GIF · Max 1 MB</p><label class="field-label" for="profileAccountType">Account type</label><input class="field" id="profileAccountType" value="${state.role === "teacher" ? "Teacher" : "Student"}" readonly><label class="field-label" for="profileEmail">Email</label><input class="field" id="profileEmail" type="email" value="${escapeHtml(state.account.email)}" readonly><label class="field-label" for="profileNameInput">Name</label><input class="field" id="profileNameInput" name="name" value="${escapeHtml(state.account.name)}" required>${positionField}${departmentField}<div class="profile-stats-summary">${completedProjects} completed · ${pendingProjects} pending</div><div style="margin-top:16px"><button class="button-danger" id="deleteProfileButton" type="button">Delete profile</button></div>`, "Save changes", async formData => {
         const name = String(formData.get("name") || "").trim();
         const post = state.role === "teacher" ? String(formData.get("post") || "") : "";
         const department = state.role === "student" ? String(formData.get("profileDepartment") || "") : "";
@@ -728,14 +922,34 @@
           showToast("Your account could not be found. Please log out and log in again.");
           return;
         }
+        const avatarFile = formData.get("avatar");
+        if (avatarFile?.size) {
+          if (!imageTypes.includes(avatarFile.type) || avatarFile.size > maxAvatarSize) {
+            showToast("Choose a JPEG, PNG, WebP or GIF image up to 1 MB.");
+            return;
+          }
+          try {
+            avatarImage = await readProfileImage(avatarFile);
+          } catch {
+            showToast("The profile picture could not be read. Please choose another image.");
+            return;
+          }
+          account.avatar = avatarImage;
+        }
         account.name = name;
         if (state.role === "teacher") account.post = post;
         else delete account.post;
         account.department = department;
         account.section = section;
         accounts[state.account.email] = account;
-        localStorage.setItem("ideaAccounts", JSON.stringify(accounts));
+        try {
+          localStorage.setItem("ideaAccounts", JSON.stringify(accounts));
+        } catch {
+          showToast("Your profile could not be saved. Try a smaller picture or remove stored data.");
+          return;
+        }
         state.account.name = name;
+        state.account.avatar = account.avatar || "";
         if (state.role === "teacher") state.account.post = post;
         else delete state.account.post;
         state.account.department = department;
@@ -744,6 +958,30 @@
         closeModal();
         render();
         showToast("Profile updated.");
+      });
+      document.getElementById("profileAvatarInput").addEventListener("change", async event => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          avatarImage = state.account.avatar || "";
+          const preview = document.getElementById("profileAvatarPreview");
+          preview.hidden = !avatarImage;
+          preview.src = avatarImage;
+          return;
+        }
+        if (!imageTypes.includes(file.type) || file.size > maxAvatarSize) {
+          event.target.value = "";
+          showToast("Choose a JPEG, PNG, WebP or GIF image up to 1 MB.");
+          return;
+        }
+        try {
+          avatarImage = await readProfileImage(file);
+          const preview = document.getElementById("profileAvatarPreview");
+          preview.src = avatarImage;
+          preview.hidden = false;
+        } catch {
+          event.target.value = "";
+          showToast("The profile picture preview could not be loaded.");
+        }
       });
       document.getElementById("deleteProfileButton").addEventListener("click", () => {
         closeModal();
@@ -876,8 +1114,13 @@
       }).join("");
       const teamCards = acceptedTeams.map(team => {
         const projects = Array.isArray(team.projects) ? team.projects : [];
-        const summaryText = team.description ? `<div class="team-intro">${escapeHtml(team.description)}</div>` : "";
-        return `<article class="team-card"><div class="team-card-header"><div class="team-card-summary">${teamProfileBadge(team)}<div class="team-card-heading"><h2 class="panel-title">${escapeHtml(team.name)}</h2><p class="panel-description">${teamMembers(team).length} members · ${projects.length} projects</p>${summaryText}</div></div><div class="team-actions">${team.ownerEmail === currentEmail ? `<button class="button-secondary" data-edit-team="${escapeHtml(team.id)}">Edit details</button><button class="button-secondary" data-invite-team="${escapeHtml(team.id)}">Invite member</button><button class="button-danger" type="button" data-delete-team="${escapeHtml(team.id)}">Delete team</button>` : ""}<button class="button-primary" data-upload-team-project="${escapeHtml(team.id)}">${icons.upload} Upload project</button></div></div><section class="team-section"><h3 class="team-section-title">Members</h3>${teamMemberMarkup(team)}${team.ownerEmail === currentEmail && teamMembers(team, "pending").length ? `<h3 class="team-section-title team-pending-title">Pending invitations</h3>${teamMemberMarkup(team, "pending")}` : ""}</section><section class="team-section"><h3 class="team-section-title">Team projects</h3>${projects.length ? `<div class="projects-list">${projects.map((project, index) => `${projectRow(project, `data-team-project-progress="${escapeHtml(team.id)}" data-project-index="${index}"`)}<div class="project-attach-action"><button class="button-danger" type="button" data-delete-team-project="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id || "")}" data-project-index="${index}">Delete project</button></div>`).join("")}</div>` : '<div class="empty-state">No projects submitted by this team yet.</div>'}</section></article>`;
+        const accounts = getAccountRecords();
+        const sharedProjects = projects.length ? `<section class="team-section"><h3 class="team-section-title">Shared projects</h3><div class="team-shared-projects">${projects.map(project => {
+          const submitter = accounts[project.submittedBy]?.name || "Team member";
+          const actions = project.id && project.fileName ? `<div class="team-shared-project-actions"><button class="button-secondary" type="button" data-open-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Open file</button><button class="button-secondary" type="button" data-download-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Download</button></div>` : "";
+          return `<div class="team-shared-project"><div class="team-shared-project-copy"><strong>${escapeHtml(project.name || "Untitled project")}</strong><span>Shared by ${escapeHtml(submitter)} · ${escapeHtml(formatSubmissionDate(project))}${project.fileName ? ` · ${escapeHtml(project.fileName)}` : ""}</span></div>${actions}</div>`;
+        }).join("")}</div></section>` : "";
+        return `<article class="team-card" data-team-description-toggle aria-expanded="false" aria-label="Toggle ${escapeHtml(team.name)} team description"><div class="team-card-header"><div class="team-card-summary">${teamProfileBadge(team)}<div class="team-card-heading"><h2 class="panel-title">${escapeHtml(team.name)}</h2><p class="panel-description">${teamMembers(team).length} members</p></div></div><div class="team-actions">${team.ownerEmail === currentEmail ? `<button class="button-secondary" data-edit-team="${escapeHtml(team.id)}">Edit details</button><button class="button-secondary" data-invite-team="${escapeHtml(team.id)}">Invite member</button><button class="button-danger" type="button" data-delete-team="${escapeHtml(team.id)}">Delete team</button>` : ""}<button class="button-primary" data-upload-team-project="${escapeHtml(team.id)}">${icons.upload} Upload project</button></div></div><div class="team-description-box hidden">${escapeHtml(team.description || "No description provided.")}</div><section class="team-section"><h3 class="team-section-title">Members</h3>${teamMemberMarkup(team)}${team.ownerEmail === currentEmail && teamMembers(team, "pending").length ? `<h3 class="team-section-title team-pending-title">Pending invitations</h3>${teamMemberMarkup(team, "pending")}` : ""}</section>${sharedProjects}</article>`;
       }).join("");
       return `<div class="page-heading"><div><p class="eyebrow">STUDENT WORKSPACE</p><h1>My team</h1><p class="page-subtitle">Create a team, invite student accounts, and submit shared projects.</p></div><button class="button-primary" data-action="create-team">＋ Create a team</button></div>${invitationCards}${teamCards || '<section class="panel"><div class="empty-state">You haven’t joined a team yet. Create one or accept an invitation.</div></section>'}`;
     }
@@ -899,7 +1142,7 @@
         const members = teamMembers(team).filter(member => accounts[member.email]?.role === "student");
         const projectCards = projects.length ? projects.map((project, index) => {
           const detailsId = `team-project-details-${escapeHtml(team.id)}-${index}`;
-          return `<article class="teacher-project"><div class="teacher-project-summary">${projectProgressButton(project, "", false)}<div class="project-icon orange">${icons.file}</div><div class="teacher-project-info"><button class="project-title-toggle" type="button" data-expand-team-project aria-expanded="false" aria-controls="${detailsId}">View project: ${escapeHtml(project.name)}</button><div class="project-meta">Submitted ${escapeHtml(formatSubmissionDateTime(project.submittedAt))} · ${escapeHtml(project.status || "In review")}</div></div>${project.fileName && project.id ? `<button class="button-secondary" data-open-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Open file</button><button class="button-secondary" data-download-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Download</button>` : ""}</div><div class="project-details hidden" id="${detailsId}"><section class="project-detail-section"><h3 class="project-detail-heading">Project details</h3><div class="project-detail-grid"><div class="project-detail-item"><span class="project-detail-label">Team name</span><span class="project-detail-value">${escapeHtml(team.name)}</span></div><div class="project-detail-item"><span class="project-detail-label">Project name</span><span class="project-detail-value">${escapeHtml(project.name)}</span></div><div class="project-detail-item"><span class="project-detail-label">Submitted on</span><span class="project-detail-value">${escapeHtml(formatSubmissionDateTime(project.submittedAt))}</span></div><div class="project-detail-item"><span class="project-detail-label">Project file</span><span class="project-detail-value">${escapeHtml(project.fileName || "No file attached")}</span></div><div class="project-detail-item"><span class="project-detail-label">Project progress</span><span class="project-detail-value">${projectProgressDetails(project.progress).label}</span></div></div></section><section class="project-detail-section"><h3 class="project-detail-heading">Team members</h3>${members.length ? `<div class="team-member-list">${members.map(member => `<div class="team-member"><div class="avatar team-member-avatar">${escapeHtml(getInitials(accounts[member.email].name))}</div><div class="team-member-copy"><strong>${escapeHtml(accounts[member.email].name)}</strong><span>${escapeHtml(member.email)}</span></div><span class="team-member-status">${member.email === team.ownerEmail ? "Team creator" : "Team member"}</span></div>`).join("")}</div>` : '<div class="project-meta">No active student members.</div>'}</section></div></article>`;
+          return `<article class="teacher-project"><div class="teacher-project-summary">${projectProgressButton(project, "", false)}<div class="project-icon orange">${icons.file}</div><div class="teacher-project-info"><button class="project-title-toggle" type="button" data-expand-team-project aria-expanded="false" aria-controls="${detailsId}">View project: ${escapeHtml(project.name)}</button><div class="project-meta">Submitted ${escapeHtml(formatSubmissionDateTime(project.submittedAt))} · ${escapeHtml(project.status || "In review")}</div>${projectProgressBar(project)}</div>${project.fileName && project.id ? `<button class="button-secondary" data-open-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Open file</button><button class="button-secondary" data-download-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Download</button>` : ""}</div><div class="project-details hidden" id="${detailsId}"><section class="project-detail-section"><h3 class="project-detail-heading">Project details</h3><div class="project-detail-grid"><div class="project-detail-item"><span class="project-detail-label">Team name</span><span class="project-detail-value">${escapeHtml(team.name)}</span></div><div class="project-detail-item"><span class="project-detail-label">Project name</span><span class="project-detail-value">${escapeHtml(project.name)}</span></div><div class="project-detail-item"><span class="project-detail-label">Submitted on</span><span class="project-detail-value">${escapeHtml(formatSubmissionDateTime(project.submittedAt))}</span></div><div class="project-detail-item"><span class="project-detail-label">Project file</span><span class="project-detail-value">${escapeHtml(project.fileName || "No file attached")}</span></div><div class="project-detail-item"><span class="project-detail-label">Project progress</span><span class="project-detail-value">${projectProgressDetails(project.progress).label}</span></div></div></section><section class="project-detail-section"><h3 class="project-detail-heading">Team members</h3>${members.length ? `<div class="team-member-list">${members.map(member => `<div class="team-member"><div class="avatar team-member-avatar">${escapeHtml(getInitials(accounts[member.email].name))}</div><div class="team-member-copy"><strong>${escapeHtml(accounts[member.email].name)}</strong><span>${escapeHtml(member.email)}</span></div><span class="team-member-status">${member.email === team.ownerEmail ? "Team creator" : "Team member"}</span></div>`).join("")}</div>` : '<div class="project-meta">No active student members.</div>'}</section></div></article>`;
         }).join("") : '<div class="empty-state">This team has not submitted a project yet.</div>';
         return `<section class="team-card"><div class="team-card-header"><div><h2 class="panel-title">${escapeHtml(team.name)}</h2><p class="panel-description">Created by ${escapeHtml(accounts[team.ownerEmail].name)} · ${members.length} members · ${projects.length} projects</p></div></div><div class="team-project-list">${projectCards}</div></section>`;
       }).join("");
@@ -917,9 +1160,12 @@
     }
 
     function getTeamChatMessages(teamId) {
+      const team = findTeam(teamId);
+      if (!team) return [];
       const messages = JSON.parse(localStorage.getItem("ideaTeamChats") || "[]");
+      const permittedMembers = new Set(teamMembers(team).map(member => member.email));
       return (Array.isArray(messages) ? messages : [])
-        .filter(message => message.teamId === teamId)
+        .filter(message => message.teamId === teamId && permittedMembers.has(message.fromEmail))
         .sort((first, second) => new Date(first.sentAt) - new Date(second.sentAt));
     }
 
@@ -936,14 +1182,24 @@
       return Number.isNaN(timestamp.getTime()) ? "" : timestamp.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
     }
 
+    function chatAttachmentMarkup(attachment) {
+      if (!attachment || !attachment.dataUrl) return "";
+      if (attachment.mimeType && attachment.mimeType.startsWith("image/")) {
+        return `<div class="chat-attachment"><img src="${escapeHtml(attachment.dataUrl)}" alt="${escapeHtml(attachment.fileName || "Shared image")}"><a class="chat-attachment-file" href="${escapeHtml(attachment.dataUrl)}" download="${escapeHtml(attachment.fileName || "image")}" target="_blank" rel="noreferrer">Download image</a></div>`;
+      }
+      return `<div class="chat-attachment"><a class="chat-attachment-file" href="${escapeHtml(attachment.dataUrl)}" download="${escapeHtml(attachment.fileName || "attachment")}" target="_blank" rel="noreferrer">${escapeHtml(attachment.fileName || "Shared file")}</a></div>`;
+    }
+
     function chatConversationMarkup(kind, target, title, subtitle, messages) {
       const accounts = getAccountRecords();
       const messageMarkup = messages.map(message => {
         const senderName = accounts[message.fromEmail]?.name || message.fromEmail;
         const ownMessage = message.fromEmail === state.account.email;
-        return `<div class="chat-message ${ownMessage ? "mine" : ""}"><div class="chat-message-meta">${escapeHtml(senderName)} · ${escapeHtml(formatChatTimestamp(message.sentAt))}</div><div class="chat-bubble">${escapeHtml(message.text)}</div></div>`;
+        const text = typeof message.text === "string" ? message.text : "";
+        const attachmentHtml = chatAttachmentMarkup(message.attachment);
+        return `<div class="chat-message ${ownMessage ? "mine" : ""}"><div class="chat-message-meta">${escapeHtml(senderName)} · ${escapeHtml(formatChatTimestamp(message.sentAt))}</div><div class="chat-bubble"><div class="chat-message-bubble">${text ? escapeHtml(text) : ""}${attachmentHtml}</div></div></div>`;
       }).join("");
-      return `<section class="panel chat-panel"><header class="chat-panel-header"><h2 class="chat-panel-title">${escapeHtml(title)}</h2><div class="chat-panel-subtitle">${escapeHtml(subtitle)}</div></header><div class="chat-message-list" id="chatMessages" role="log" aria-live="polite">${messageMarkup || '<div class="chat-empty">No messages yet. Start the conversation.</div>'}</div><form class="chat-composer" data-chat-form data-chat-kind="${kind}" data-chat-target="${escapeHtml(target)}"><textarea class="textarea" id="chatMessageInput" name="message" rows="2" maxlength="2000" placeholder="Write a message..." aria-label="Message" required></textarea><button class="button-primary" type="submit">Send</button></form></section>`;
+      return `<section class="panel chat-panel"><header class="chat-panel-header"><h2 class="chat-panel-title">${escapeHtml(title)}</h2><div class="chat-panel-subtitle">${escapeHtml(subtitle)}</div></header><div class="chat-message-list" id="chatMessages" role="log" aria-live="polite">${messageMarkup || '<div class="chat-empty">No messages yet. Start the conversation.</div>'}</div><form class="chat-composer" data-chat-form data-chat-kind="${kind}" data-chat-target="${escapeHtml(target)}"><div class="chat-attachment-controls"><label class="chat-upload-button">Attach file<input type="file" name="attachment" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.obj,.stl,.glb,.gltf,.fbx,.blend,.dae,.png,.jpg,.jpeg,.webp" id="chatAttachmentInput"><span id="chatAttachmentName" class="chat-attachment-label">No file selected</span></label></div><textarea class="textarea" id="chatMessageInput" name="message" rows="2" maxlength="2000" placeholder="Write a message..." aria-label="Message"></textarea><button class="button-primary" type="submit">Send</button></form></section>`;
     }
 
     function teamChatPage() {
@@ -972,12 +1228,33 @@
       return `<div class="page-heading"><div><p class="eyebrow">PING</p><h1>Chat</h1><p class="page-subtitle">Private messages with other student accounts.</p></div></div><div class="chat-workspace"><aside class="panel chat-contact-panel"><div class="chat-contact-list">${channels}</div></aside>${conversation}</div>`;
     }
 
-    function sendChatMessage(kind, target, value) {
+    function readChatAttachment(file) {
+      if (!file) return null;
+      if (file.size > 25 * 1024 * 1024) {
+        showToast("Files must be 25 MB or smaller.");
+        return null;
+      }
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({
+          fileName: file.name || "attachment",
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl: typeof reader.result === "string" ? reader.result : ""
+        });
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function sendChatMessage(kind, target, value, attachment) {
       if (state.role !== "student") return;
       const text = String(value || "").trim();
-      if (!text) { showToast("Write a message before sending."); return; }
+      if (!text && !attachment) { showToast("Write a message or attach a file before sending."); return; }
       if (text.length > 2000) { showToast("Messages must be 2,000 characters or fewer."); return; }
-      const message = { fromEmail: state.account.email, text, sentAt: new Date().toISOString() };
+      const attachmentPayload = attachment ? await readChatAttachment(attachment) : null;
+      if (attachment && !attachmentPayload) return;
+      const message = { fromEmail: state.account.email, text, sentAt: new Date().toISOString(), attachment: attachmentPayload || null };
       if (kind === "team") {
         const team = findTeam(target);
         if (!team || !teamMembers(team).some(member => member.email === state.account.email)) {
@@ -1156,8 +1433,11 @@
     function uploadTeamProjectModal(teamId) {
       if (state.role !== "student") return;
       const team = findTeam(teamId);
-      if (!team || !teamMembers(team).some(member => member.email === state.account.email)) return;
-      showModal("Upload a team project", `Submit shared work for “${escapeHtml(team.name)}”.`, `<label class="field-label" for="teamProjectTitle">Project name</label><input class="field" id="teamProjectTitle" name="title" maxlength="120" placeholder="Enter a project name" required><label class="field-label" for="teamProjectProgress">Project progress</label><select class="field" id="teamProjectProgress" name="progress"><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><label class="drop-zone" for="teamProjectFile">${icons.upload}<strong id="teamProjectFileName">Choose a project file</strong><span>Any file type · Max 25 MB · Required when completed</span></label><input class="file-input" id="teamProjectFile" name="file" type="file">`, "Submit project", async formData => {
+      if (!team || !teamMembers(team).some(member => member.email === state.account.email)) {
+        showToast("You are no longer a member of this team.");
+        return;
+      }
+      showModal("Upload as a team", `Submit shared work for “${escapeHtml(team.name)}”.`, `<p class="project-meta">This project will be submitted by the ${escapeHtml(team.name)} team.</p><label class="field-label" for="teamProjectTitle">Project name</label><input class="field" id="teamProjectTitle" name="title" maxlength="120" placeholder="Enter a project name" required><label class="field-label" for="teamProjectProgress">Project progress</label><select class="field" id="teamProjectProgress" name="progress"><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><label class="drop-zone" for="teamProjectFile">${icons.upload}<strong id="teamProjectFileName">Choose a project file</strong><span>Any file type · Max 25 MB · Required when completed</span></label><input class="file-input" id="teamProjectFile" name="file" type="file">`, "Upload as team", async formData => {
         const title = String(formData.get("title") || "").trim();
         const file = formData.get("file");
         if (!title) { showToast("Enter a project name."); return; }
@@ -1242,8 +1522,8 @@
       const teams = getTeams();
       const team = findTeam(teamId, teams);
       const project = projectId ? team?.projects?.find(item => item.id === projectId) : team?.projects?.[projectIndex];
-      if (!team || !project || !teamMembers(team).some(member => member.email === state.account.email)) {
-        showToast("This team project is no longer available.");
+      if (!team || !project || team.ownerEmail !== state.account.email || !teamMembers(team).some(member => member.email === state.account.email)) {
+        showToast("Only the team leader can delete this team project.");
         render();
         return;
       }
@@ -1256,7 +1536,7 @@
       const updatedTeams = getTeams();
       const updatedTeam = findTeam(teamId, updatedTeams);
       const updatedProject = projectId ? updatedTeam?.projects?.find(item => item.id === projectId) : updatedTeam?.projects?.[projectIndex];
-      if (!updatedTeam || !updatedProject || !teamMembers(updatedTeam).some(member => member.email === state.account.email)) {
+      if (!updatedTeam || !updatedProject || updatedTeam.ownerEmail !== state.account.email || !teamMembers(updatedTeam).some(member => member.email === state.account.email)) {
         closeModal();
         render();
         showToast("This team project is no longer available.");
@@ -1285,7 +1565,7 @@
         <section class="welcome-banner"><div class="welcome-copy"><div class="welcome-kicker">YOUR CLASSROOM · DESIGN & TECHNOLOGY</div><h2 class="welcome-title">A little feedback goes a long way.</h2><p class="welcome-subtitle">Review submissions and help every student progress.</p></div><div class="banner-art" aria-hidden="true"><div class="paper-art one"></div><div class="paper-art two"></div><span class="banner-spark">✦</span></div><button class="button-primary" data-action="review-all">Review submissions <span aria-hidden="true">→</span></button></section>
         <section class="stats-grid"><article class="stat-card"><div class="stat-top"><span>Students with submissions</span><span class="stat-icon">${icons.people}</span></div><div class="stat-value">${studentsCount.toString().padStart(2, "0")}</div><div class="stat-note">Student accounts</div></article><article class="stat-card"><div class="stat-top"><span>Submitted projects</span><span class="stat-icon blue">${icons.folder}</span></div><div class="stat-value">${submissions.length.toString().padStart(2, "0")}</div><div class="stat-note">Across student accounts</div></article><article class="stat-card"><div class="stat-top"><span>Awaiting review</span><span class="stat-icon orange">${icons.clock}</span></div><div class="stat-value">${awaiting.toString().padStart(2, "0")}</div><div class="stat-note">Ready for your feedback</div></article><article class="stat-card"><div class="stat-top"><span>Reviewed</span><span class="stat-icon green">${icons.check}</span></div><div class="stat-value">${(submissions.length - awaiting).toString().padStart(2, "0")}</div><div class="stat-note">Projects with a review status</div></article></section>
         <section class="panel"><div class="panel-header"><div><h2 class="panel-title">Submissions to review</h2><p class="panel-description">Recent work from your students</p></div><div class="toolbar"><select class="select-filter" id="reviewFilter" aria-label="Filter submissions"><option value="all">All submissions</option><option value="In review">Awaiting review</option><option value="Approved">Reviewed</option></select></div></div><div id="teacherProjects">${teacherProjectRows()}</div></section>
-        <div style="height:16px"></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">Student questions</h2><p class="panel-description">Questions that could use your help</p></div><button class="text-button" data-action="teacher-queries">View inbox &rarr;</button></div><div class="query-list">${state.queries.length ? state.queries.map((q, i) => `<div class="query-item"><span class="query-bullet ${q.answered ? "answered" : ""}"></span><div class="query-copy"><div class="query-title">${escapeHtml(q.title)}</div><div class="query-meta">${q.answered ? "Answered" : "Needs a reply"}</div></div><button class="text-button" data-reply="${i}">${q.answered ? "View" : "Reply"}</button></div>`).join("") : '<div class="empty-state">No student questions yet.</div>'}</div></section>`;
+        <div style="height:16px"></div>        <section class="panel"><div class="panel-header"><div><h2 class="panel-title">Student questions</h2><p class="panel-description">Questions that could use your help</p></div><button class="text-button" data-page="queries">View inbox &rarr;</button></div><div class="query-list">${teacherQueriesList(getStudentQueries().slice(0, 3))}</div></section>`;
     }
 
     function teacherProjectRows(filter = "all") {
@@ -1302,6 +1582,7 @@
           <div class="teacher-project-info">
             <button class="project-title-toggle" type="button" data-expand-project="${index}" aria-expanded="false" aria-controls="project-details-${index}">${escapeHtml(project.name)}</button>
             <div class="project-meta">${escapeHtml(project.studentName)}</div>
+            ${projectProgressBar(project)}
           </div>
           ${project.fileName && project.id ? `<button class="button-secondary" data-open-file="${index}">Open file</button><button class="button-secondary" data-download-file="${index}">Download</button>` : project.fileName ? '<span class="project-meta">Student needs to re-attach file</span>' : ""}
         </div>
@@ -1326,21 +1607,209 @@
 
     function teacherProjectsPage() {
       const submissions = getStudentSubmissions();
-      return `<div class="page-heading"><div><p class="eyebrow">TEACHER WORKSPACE</p><h1>Student projects</h1><p class="page-subtitle">Select a project name to view student details, files, and submission information.</p></div></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">All student submissions</h2><p class="panel-description">${submissions.length} ${submissions.length === 1 ? "project" : "projects"} across student accounts</p></div><div class="toolbar"><input class="search-box" id="projectSearch" type="search" value="${escapeHtml(state.projectSearch || "")}" placeholder="Search projects or students" aria-label="Search projects"><select class="select-filter" id="projectFilter" aria-label="Filter student projects"><option value="all">All projects</option><option value="In review">Awaiting review</option><option value="Approved">Approved</option><option value="Needs changes">Needs changes</option></select></div></div><div id="teacherProjects">${teacherProjectRows()}</div></section>`;
+      return `<div class="page-heading"><div><p class="eyebrow teacher-projects-eyebrow">TEACHER WORKSPACE</p><p class="page-subtitle">Select a project name to view student details, files, and submission information.</p></div></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">Student projects</h2><p class="panel-description">${submissions.length} ${submissions.length === 1 ? "project" : "projects"} across student accounts</p></div><div class="toolbar"><input class="search-box" id="projectSearch" type="search" value="${escapeHtml(state.projectSearch || "")}" placeholder="Search projects or students" aria-label="Search projects"><select class="select-filter" id="projectFilter" aria-label="Filter student projects"><option value="all">All projects</option><option value="In review">Awaiting review</option><option value="Approved">Approved</option><option value="Needs changes">Needs changes</option></select></div></div><div id="teacherProjects">${teacherProjectRows()}</div></section>`;
     }
 
     function projectsPage() {
       if (state.role === "teacher") return teacherProjectsPage();
+      const ownedTeams = getOwnedStudentTeams();
+      const studentTeams = getStudentTeamsForUpload();
+      const isTeamMember = studentTeams.some(team => team.ownerEmail !== state.account.email);
+      const teamProjects = studentTeams.flatMap(team => (Array.isArray(team.projects) ? team.projects : []).map(project => ({ team, project })))
+        .filter(({ team, project }) => {
+          const term = (state.projectSearch || "").trim().toLowerCase();
+          return !term || [team.name, project.name, project.fileName, project.submittedBy].some(value => String(value || "").toLowerCase().includes(term));
+        });
       const filteredProjects = state.projects.map((project, index) => ({ project, index })).filter(({ project }) => {
         const term = (state.projectSearch || "").trim().toLowerCase();
         if (!term) return true;
         return [project.name, project.type, project.date, project.status].some(value => String(value || "").toLowerCase().includes(term));
       });
-      return `<div class="page-heading"><div><p class="eyebrow">YOUR WORK</p><h1>My projects</h1><p class="page-subtitle">Keep track of your submissions and teacher feedback.</p></div><button class="button-primary" data-action="upload">${icons.upload} Upload a project</button></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">All projects</h2><p class="panel-description">${filteredProjects.length} projects</p></div><div class="toolbar"><input class="search-box" id="projectSearch" type="search" value="${escapeHtml(state.projectSearch || "")}" placeholder="Search your projects" aria-label="Search project list"><span class="term-pill">Workspace</span></div></div><div class="projects-list">${filteredProjects.length ? filteredProjects.map(({ project, index }) => `${projectRow(project, `data-personal-project-progress="${index}"`)}<div class="project-attach-action"><button class="button-secondary" data-attach-file="${index}">${project.fileName ? "Replace attached file" : "Attach project file"}</button><button class="button-danger" type="button" data-delete-project="${index}">Delete project</button></div>`).join("") : '<div class="empty-state">No projects match your search yet.</div>'}</div></section>`;
+      const teamProjectsMarkup = teamProjects.length ? teamProjects.map(({ team, project }) => {
+        const rowProject = { ...project, type: `Team: ${team.name}`, date: `Submitted ${formatSubmissionDate(project)}`, status: project.status || "In review", color: project.color || "orange" };
+        const fileActions = project.id && project.fileName ? `<button class="button-secondary" type="button" data-open-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Open file</button><button class="button-secondary" type="button" data-download-team-file="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id)}">Download file</button>` : '<span class="project-meta">No attached file</span>';
+        const deleteAction = team.ownerEmail === state.account.email ? `<button class="button-danger" type="button" data-delete-team-project="${escapeHtml(team.id)}" data-project-id="${escapeHtml(project.id || "")}">Delete project</button>` : "";
+        return `${projectRow(rowProject)}<div class="project-attach-action">${fileActions}${deleteAction}</div>`;
+      }).join("") : '<div class="empty-state">No team projects match your search.</div>';
+      const personalProjectsSection = isTeamMember ? "" : `<section class="panel"><div class="panel-header"><div><h2 class="panel-title">My projects</h2><p class="panel-description">${filteredProjects.length} projects</p></div><div class="toolbar"><button class="button-primary" type="button" data-action="create-topic-project">＋ Create project</button><input class="search-box" id="projectSearch" type="search" value="${escapeHtml(state.projectSearch || "")}" placeholder="Search your projects" aria-label="Search project list"><span class="term-pill">Workspace</span></div></div><div class="projects-list">${filteredProjects.length ? filteredProjects.map(({ project, index }) => `${projectRow(project, `data-personal-project-progress="${index}"`)}<div class="project-attach-action"><button class="button-secondary" data-edit-personal-project="${index}">Edit project</button><button class="button-secondary" data-attach-file="${index}">Upload a file</button>${project.id && project.fileName ? `<button class="button-secondary" type="button" data-open-personal-file="${index}">Open file</button><button class="button-secondary" type="button" data-download-personal-file="${index}">Download file</button><button class="button-secondary" type="button" data-remove-personal-file="${index}">Remove file</button>` : ""}${ownedTeams.length && !hasProjectBeenUploadedToTeam(project, ownedTeams) ? `<button class="button-secondary" type="button" data-share-project-to-team="${index}">Upload to team</button>` : ""}<button class="button-danger" type="button" data-delete-project="${index}">Delete project</button></div>${project.fileName ? `<div class="project-meta" style="padding:0 0 10px 51px">Attached file: ${escapeHtml(project.fileName)}</div>` : ""}`).join("") : '<div class="empty-state">No projects match your search yet.</div>'}</div></section>`;
+      return `<div class="page-heading"><div><p class="eyebrow student-projects-eyebrow">YOUR WORK</p><p class="page-subtitle">Keep track of your submissions and teacher feedback.</p></div></div>${personalProjectsSection}<section class="panel" style="margin-top:16px"><div class="panel-header"><div><h2 class="panel-title">Team projects</h2><p class="panel-description">Projects shared with teams you belong to</p></div></div><div class="projects-list">${teamProjectsMarkup}</div></section>`;
+    }
+
+    function dataPage() {
+      const rowsText = state.dataRows || defaultTopicsSource;
+      const tableMarkup = projectDataTableMarkup(rowsText);
+      return `<div class="page-heading"><div><p class="eyebrow">DATA</p><h1>Topics</h1><p class="page-subtitle">Upload a file to replace or add your dataset, or review the sample AI use-case topics below.</p></div><div class="toolbar"><button class="button-primary" type="button" id="dataUploadBtn">${icons.upload} Upload file</button><input id="dataUploadInput" type="file" accept=".csv,.tsv,.txt,.json,.pdf" hidden></div></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">Topics</h2><p class="panel-description">AI project case topics and their classifications.</p></div></div><div class="data-table-wrap">${tableMarkup || '<div class="empty-state">No data available yet.</div>'}</div></section>`;
     }
 
     function queriesPage() {
+      if (state.role === "teacher") {
+        const studentQueries = getStudentQueries();
+        return `<div class="page-heading"><div><p class="eyebrow">STUDENT QUESTIONS</p><h1>Answer your students</h1><p class="page-subtitle">Review questions from your students and share helpful answers.</p></div></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">Student questions</h2><p class="panel-description">${studentQueries.length} ${studentQueries.length === 1 ? "question" : "questions"}</p></div></div><div class="query-list">${teacherQueriesList(studentQueries)}</div></section>`;
+      }
       return `<div class="page-heading"><div><p class="eyebrow">ASK YOUR TEACHER</p><h1>Questions & answers</h1><p class="page-subtitle">Get guidance from your teacher as you work through your project.</p></div><button class="button-primary" data-action="ask-question">＋ Ask a question</button></div><section class="panel"><div class="panel-header"><div><h2 class="panel-title">Your questions</h2><p class="panel-description">Questions are shared with your teacher.</p></div></div><div class="query-list">${state.queries.length ? queriesList() : '<div class="empty-state">No questions yet. Ask your teacher for guidance.</div>'}<button class="text-button" data-action="ask-question">＋ Ask your teacher a question</button></div></section>`;
+    }
+
+    function projectDataTableMarkup(rawText) {
+      if (typeof rawText !== "string") return "";
+      const normalized = rawText.replace(/\r/g, "").trim();
+      if (!normalized) return "";
+
+      let parsedRows = [];
+      try {
+        const jsonValue = JSON.parse(normalized);
+        if (Array.isArray(jsonValue)) {
+          if (!jsonValue.length) return "";
+          const firstItem = jsonValue[0];
+          if (typeof firstItem === "object" && firstItem !== null && !Array.isArray(firstItem)) {
+            const headers = Object.keys(firstItem);
+            parsedRows = [headers, ...jsonValue.map(item => headers.map(header => String(item?.[header] ?? "")))];
+          } else {
+            parsedRows = [["Value"], ...jsonValue.map(item => [String(item)])];
+          }
+        } else if (jsonValue && typeof jsonValue === "object") {
+          const headers = Object.keys(jsonValue);
+          parsedRows = [headers, headers.map(header => String(jsonValue[header]))];
+        }
+      } catch {
+        // fall through to text parsing below
+      }
+
+      if (!parsedRows.length) {
+        const lines = normalized.split("\n").map(line => line.trim()).filter(Boolean);
+        if (!lines.length) return "";
+        const delimiterCandidates = [",", ";", "\t", "|"];
+        let detectedDelimiter = "";
+        for (const candidate of delimiterCandidates) {
+          const sampleLen = lines.slice(0, 5).filter(line => line.includes(candidate)).length;
+          if (sampleLen >= 1 && lines.some(line => line.split(candidate).length > 1)) {
+            detectedDelimiter = candidate;
+            break;
+          }
+        }
+
+        if (detectedDelimiter) {
+          parsedRows = lines.map(line => line.split(detectedDelimiter).map(value => value.trim()));
+        } else {
+          parsedRows = [["Row", "Value"], ...lines.map((line, index) => [String(index + 1), line])];
+        }
+      }
+
+      const headerRow = Array.isArray(parsedRows[0]) ? parsedRows[0].map(value => String(value || "")) : ["Value"];
+      const bodyRows = parsedRows.slice(1).map(row => Array.isArray(row) ? row.map(value => String(value ?? "")) : [String(row ?? "")]);
+      const tableWidth = Math.max(headerRow.length, ...bodyRows.map(row => row.length), 1);
+      const normalizedHeader = Array.from({ length: tableWidth }, (_, index) => headerRow[index] || `Column ${index + 1}`);
+      const normalizedBody = bodyRows.map(row => Array.from({ length: tableWidth }, (_, index) => row[index] || ""));
+      const titleColumn = normalizedHeader.findIndex(header => ["title", "topic", "project title", "case title"].includes(header.trim().toLowerCase()));
+      const caseColumn = normalizedHeader.findIndex(header => ["case", "case id"].includes(header.trim().toLowerCase()));
+
+      return `<table class="data-table"><thead><tr>${normalizedHeader.map(cell => `<th>${escapeHtml(cell)}</th>`).join("")}</tr></thead><tbody>${normalizedBody.map(row => {
+        const topicName = row[titleColumn]?.trim() || row.find(Boolean) || "";
+        const topicCase = caseColumn >= 0 ? row[caseColumn].trim() : "";
+        return `<tr data-topic-select data-topic-name="${escapeHtml(topicName)}" data-topic-case="${escapeHtml(topicCase)}" tabindex="0" aria-label="Select ${escapeHtml(topicName)} as a project">${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`;
+      }).join("")}</tbody></table>`;
+    }
+
+    function selectDataTopic(topicRow) {
+      if (state.role !== "student") {
+        showToast("Topic selection is available to student accounts.");
+        return;
+      }
+      const topicName = topicRow.dataset.topicName?.trim();
+      if (!topicName) {
+        showToast("This topic does not have a title.");
+        return;
+      }
+      const topicCase = topicRow.dataset.topicCase?.trim() || "";
+      const existingProject = state.projects.find(project => project.topicCase === topicCase && project.name === topicName);
+      if (existingProject) {
+        showToast("That project has already been chosen.");
+        return;
+      }
+      state.projects.unshift({
+        name: topicName,
+        type: topicCase ? `Topic ${topicCase}` : "Selected topic",
+        date: `Selected ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`,
+        status: "Selected",
+        progress: "not_started",
+        color: "blue",
+        topicCase
+      });
+      persistWorkspace();
+      state.projectSearch = "";
+      state.page = "projects";
+      render();
+      showToast("Topic added to My projects.");
+    }
+
+    function getProjectTopics() {
+      const topicContainer = document.createElement("div");
+      topicContainer.innerHTML = projectDataTableMarkup(state.dataRows || defaultTopicsSource);
+      return [...topicContainer.querySelectorAll("[data-topic-select]")]
+        .map(row => ({ name: row.dataset.topicName?.trim() || "", topicCase: row.dataset.topicCase?.trim() || "" }))
+        .filter(topic => topic.name);
+    }
+
+    function createTopicProjectModal() {
+      if (state.role !== "student") return;
+      const topics = getProjectTopics();
+      if (!topics.length) {
+        showToast("No topics are available in Data right now.");
+        return;
+      }
+      const options = topics.map((topic, index) => `<option value="${index}">${topic.topicCase ? `${escapeHtml(topic.topicCase)} · ` : ""}${escapeHtml(topic.name)}</option>`).join("");
+      showModal("Create project", "Choose a topic from Data to add it to My projects.", `<label class="field-label" for="projectTopicSelect">Choose topic</label><select class="field" id="projectTopicSelect" name="topic" required><option value="">Select a topic</option>${options}</select>`, "Create project", formData => {
+        const selectedValue = String(formData.get("topic") || "");
+        const selectedIndex = Number(selectedValue);
+        const topic = topics[selectedIndex];
+        if (!selectedValue || !Number.isInteger(selectedIndex) || !topic) {
+          showToast("Choose a topic to create a project.");
+          return;
+        }
+        const existingProject = state.projects.find(project => project.topicCase === topic.topicCase && project.name === topic.name);
+        if (existingProject) {
+          showToast("That project has already been chosen.");
+          return;
+        }
+        const today = new Date();
+        state.projects.unshift({
+          name: topic.name,
+          type: topic.topicCase ? `Topic ${topic.topicCase}` : "Selected topic",
+          date: `Selected ${today.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`,
+          status: "Selected",
+          progress: "not_started",
+          color: "blue",
+          topicCase: topic.topicCase
+        });
+        persistWorkspace();
+        state.projectSearch = "";
+        closeModal();
+        render();
+        showToast("Project created in My projects.");
+      });
+    }
+
+    async function hydrateProjectDataTables() {
+      const containers = document.querySelectorAll("[data-project-data-container]");
+      for (const container of containers) {
+        const projectId = container.getAttribute("data-project-data-container");
+        if (!projectId) continue;
+        try {
+          const stored = await readSubmissionFile(projectId);
+          const rawText = stored?.file ? await stored.file.text() : "";
+          const table = projectDataTableMarkup(rawText);
+          container.innerHTML = table || '<div class="empty-state">This uploaded file is empty or not readable as text.</div>';
+        } catch {
+          container.innerHTML = '<div class="empty-state">This uploaded file could not be read.</div>';
+        }
+      }
+    }
+
+    function projectDataSection() {
+      const uploadedProjects = state.projects.filter(project => project.id && project.fileName);
+      if (!uploadedProjects.length) {
+        return `<section class="panel"><div class="panel-header"><div><h2 class="panel-title">Data</h2><p class="panel-description">Uploaded text files appear here as readable tables.</p></div></div><div class="empty-state">No uploaded data files yet.</div></section>`;
+      }
+      return `<section class="panel"><div class="panel-header"><div><h2 class="panel-title">Data</h2><p class="panel-description">Uploaded text files appear here as readable tables.</p></div></div><div class="data-project-list">${uploadedProjects.map(project => `<div class="data-project-card"><div class="data-project-header"><strong>${escapeHtml(project.name)}</strong><span>${escapeHtml(project.fileName)}</span></div><div class="data-table-wrap" data-project-data-container="${escapeHtml(project.id)}">Loading data…</div></div>`).join("")}</div></section>`;
     }
 
     function render() {
@@ -1350,7 +1819,7 @@
       document.getElementById("authScreen").classList.add("hidden");
       document.querySelectorAll(".nav-item").forEach(button => {
         const studentOnlyPage = ["team-chat", "chat"].includes(button.dataset.page);
-        const enabled = ["overview", "projects", "queries", "teams", "team-chat", "chat"].includes(button.dataset.page) && (!studentOnlyPage || state.role === "student");
+        const enabled = ["overview", "projects", "data", "queries", "teams", "team-chat", "chat"].includes(button.dataset.page) && (!studentOnlyPage || state.role === "student");
         button.classList.toggle("hidden", !enabled);
         button.classList.toggle("active", button.dataset.page === state.page);
         if (button.dataset.page === state.page) button.setAttribute("aria-current", "page");
@@ -1364,20 +1833,54 @@
       document.getElementById("profileName").textContent = state.account.name;
       const accountType = state.role === "teacher" ? "Teacher" : "Student";
       document.getElementById("profileRole").innerHTML = `<span>${escapeHtml(accountType)}</span>`;
-      document.getElementById("profileAvatar").textContent = getInitials(state.account.name);
-      const projectCount = state.role === "teacher" ? getStudentSubmissions().length : state.projects.length;
-      document.querySelector('[data-page="projects"] span').textContent = state.role === "teacher" ? "Student projects" : "My projects";
+      const profileAvatar = document.getElementById("profileAvatar");
+      const avatar = typeof state.account.avatar === "string" && /^data:image\/(?:jpeg|png|webp|gif);base64,/.test(state.account.avatar)
+        ? `<img src="${escapeHtml(state.account.avatar)}" alt="">`
+        : escapeHtml(getInitials(state.account.name));
+      profileAvatar.innerHTML = avatar;
+      const studentTeams = state.role === "student" ? getStudentTeamsForUpload() : [];
+      const isTeamMember = studentTeams.some(team => team.ownerEmail !== state.account.email);
+      const teamProjectCount = studentTeams.reduce((count, team) => count + (Array.isArray(team.projects) ? team.projects.length : 0), 0);
+      const projectCount = state.role === "teacher" ? getStudentSubmissions().length : isTeamMember ? teamProjectCount : state.projects.length;
+      document.querySelector('[data-page="projects"] span').textContent = state.role === "teacher" ? "Student projects" : isTeamMember ? "Team projects" : "My projects";
       document.querySelector('[data-count="projects"]').textContent = projectCount;
-      document.querySelector('[data-count="queries"]').textContent = state.queries.length;
+      document.querySelector('[data-count="queries"]').textContent = state.role === "teacher" ? getStudentQueries().length : state.queries.length;
       const views = {
         overview: () => state.role === "teacher" ? teacherOverview() : studentOverview(),
         projects: projectsPage,
+        data: dataPage,
         queries: queriesPage,
         teams: teamsPage,
         "team-chat": teamChatPage,
         chat: directChatPage
       };
       content.innerHTML = views[state.page]();
+      if (state.page === "data") {
+        const dataUploadBtn = document.getElementById("dataUploadBtn");
+        const dataUploadInput = document.getElementById("dataUploadInput");
+        if (dataUploadBtn && dataUploadInput) {
+          dataUploadBtn.addEventListener("click", () => dataUploadInput.click());
+          dataUploadInput.addEventListener("change", async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (file.name.toLowerCase().endsWith(".pdf")) {
+              state.dataRows = defaultTopicsSource;
+              localStorage.setItem("ideaDataTable", state.dataRows);
+              render();
+              showToast("Sample PDF data loaded into Topics.");
+              return;
+            }
+            const text = await file.text();
+            state.dataRows = text || defaultTopicsSource;
+            localStorage.setItem("ideaDataTable", state.dataRows);
+            render();
+            showToast(`${file.name} loaded into the Topics table.`);
+          });
+        }
+      }
+      if (state.page === "data" && state.role === "student") {
+        hydrateProjectDataTables();
+      }
       const chatMessages = document.getElementById("chatMessages");
       if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
       const filter = document.getElementById("reviewFilter");
@@ -1422,18 +1925,65 @@
 
     function showModal(title, subtitle, body, submitLabel, onSubmit) {
       const host = document.getElementById("modalHost");
-      host.innerHTML = `<div class="modal-backdrop" data-close-modal><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><h2 class="modal-title" id="modalTitle">${title}</h2><p class="modal-subtitle">${subtitle}</p></div><button class="modal-close" type="button" aria-label="Close dialog" data-close-modal>×</button></div><form id="modalForm">${body}<div class="modal-actions"><button type="button" class="button-secondary" data-close-modal>Cancel</button><button type="submit" class="button-primary">${submitLabel}</button></div></form></section></div>`;
+      host.innerHTML = `<div class="modal-backdrop" data-close-modal><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><h2 class="modal-title" id="modalTitle">${title}</h2><p class="modal-subtitle">${subtitle}</p></div><button class="modal-close" type="button" aria-label="Close dialog" data-close-modal>×</button></div><form id="modalForm">${body}<div class="modal-actions"><button type="button" class="button-secondary" data-close-modal>Cancel</button>${submitLabel ? `<button type="submit" class="button-primary">${submitLabel}</button>` : ""}</div></form></section></div>`;
       host.querySelector(".modal").addEventListener("click", event => event.stopPropagation());
       host.querySelectorAll("[data-close-modal]").forEach(button => button.addEventListener("click", closeModal));
       host.querySelector("#modalForm").addEventListener("submit", event => {
         event.preventDefault();
         onSubmit(new FormData(event.currentTarget));
       });
-      const firstField = host.querySelector("input:not([type=file]), textarea");
+      const firstField = host.querySelector("input:not([type=file]), textarea, select");
       if (firstField) firstField.focus();
     }
 
-    function uploadModal() {
+    function getStudentTeamsForUpload() {
+      if (state.role !== "student") return [];
+      const currentEmail = state.account?.email;
+      return getTeams().filter(team => teamMembers(team).some(member => member.email === currentEmail));
+    }
+
+    function getOwnedStudentTeams() {
+      if (state.role !== "student") return [];
+      return getStudentTeamsForUpload().filter(team => team.ownerEmail === state.account.email);
+    }
+
+    function projectSharingSnapshot(project) {
+      return JSON.stringify({
+        name: project.name || "",
+        description: project.description || "",
+        note: project.note || "",
+        fileName: project.fileName || "",
+        attachmentVersion: project.attachmentVersion || 0,
+        progress: project.progress || "not_started"
+      });
+    }
+
+    function hasProjectBeenUploadedToTeam(project, teams = getOwnedStudentTeams()) {
+      if (!project?.id) return false;
+      const currentSnapshot = projectSharingSnapshot(project);
+      return teams.some(team => (Array.isArray(team.projects) ? team.projects : []).some(teamProject => {
+        if (teamProject.sharedFromProjectId !== project.id) return false;
+        return (teamProject.sharedProjectSnapshot || projectSharingSnapshot(teamProject)) === currentSnapshot;
+      }));
+    }
+
+    function uploadTypeSelectorMarkup() {
+      return `<div class="upload-type-picker"><button type="button" class="upload-type-option" data-select-personal-upload>Submit as individual</button><button type="button" class="upload-type-option" data-select-team-upload-flow>Submit as team</button></div>`;
+    }
+
+    function teamUploadSelectorMarkup() {
+      const teams = getStudentTeamsForUpload();
+      if (!teams.length) return '<div class="empty-state">You haven’t joined a team yet. Create a team or accept an invitation first.<br><button class="text-button" type="button" data-go-to-teams>Go to My team &rarr;</button></div>';
+      const accounts = getAccountRecords();
+      return `<div class="team-upload-picker"><label class="field-label">Select a team</label><div class="team-upload-option-list">${teams.map(team => {
+        const members = teamMembers(team);
+        const memberNames = members.slice(0, 3).map(member => accounts[member.email]?.name || member.email).join(", ");
+        const label = `${members.length} member${members.length === 1 ? "" : "s"}${memberNames ? ` · ${memberNames}` : ""}`;
+        return `<button type="button" class="team-upload-option" data-select-team-upload="${escapeHtml(team.id)}"><span class="team-upload-avatar">${escapeHtml(getInitials(team.name || "Team"))}</span><span class="team-upload-copy"><strong>${escapeHtml(team.name)}</strong><span>${escapeHtml(label)}</span></span></button>`;
+      }).join("")}</div></div>`;
+    }
+
+    function personalUploadModal() {
       showModal("Upload a project", "Share your latest work with your teacher.", `<label class="field-label" for="projectTitle">Project title</label><input class="field" id="projectTitle" name="title" placeholder="e.g. Final design prototype" required><label class="field-label" for="projectProgress">Project progress</label><select class="field" id="projectProgress" name="progress"><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select><label class="drop-zone" for="projectFile">${icons.upload}<strong id="fileName">Choose a file or drag it here</strong><span>Any file type · Max 25 MB · Required when completed</span></label><input class="file-input" id="projectFile" name="file" type="file"><label class="field-label" for="projectNote">Note for your teacher <span style="color:#a0a5b5;font-weight:500">(optional)</span></label><textarea class="textarea" id="projectNote" name="note" placeholder="Anything you'd like your teacher to know?"></textarea>`, "Submit project", async formData => {
         const title = String(formData.get("title") || "").trim();
         if (!title) return;
@@ -1460,10 +2010,158 @@
       });
     }
 
+    function uploadModal() {
+      showModal("Upload a project", "Choose how you want to submit your project.", uploadTypeSelectorMarkup(), "", () => {});
+    }
+
+    function selectTeamForUploadModal() {
+      showModal("Submit as team", "Select the team that will submit this project.", teamUploadSelectorMarkup(), "", () => {});
+    }
+
+    function uploadExistingProjectToTeam(projectIndex) {
+      if (state.role !== "student" || !Number.isInteger(projectIndex) || !state.projects[projectIndex]) return;
+      const teams = getOwnedStudentTeams();
+      if (!teams.length) {
+        showToast("Create a team before uploading a project to it.");
+        return;
+      }
+      if (teams.length === 1) {
+        shareExistingProjectWithTeam(projectIndex, teams[0].id);
+        return;
+      }
+      const teamOptions = teams.map(team => `<button type="button" class="team-upload-option" data-share-project-team="${escapeHtml(team.id)}" data-share-project-index="${projectIndex}"><span class="team-upload-avatar">${escapeHtml(getInitials(team.name || "Team"))}</span><span class="team-upload-copy"><strong>${escapeHtml(team.name)}</strong><span>${teamMembers(team).length} members</span></span></button>`).join("");
+      showModal("Upload to team", "Choose which team should receive this project.", `<div class="team-upload-option-list">${teamOptions}</div>`, "", () => {});
+    }
+
+    async function shareExistingProjectWithTeam(projectIndex, teamId) {
+      if (state.role !== "student" || !Number.isInteger(projectIndex)) return;
+      const project = state.projects[projectIndex];
+      const team = findTeam(teamId);
+      if (!project || !team || team.ownerEmail !== state.account.email || !teamMembers(team).some(member => member.email === state.account.email)) {
+        showToast("This project or team is no longer available.");
+        return;
+      }
+      if (!project.id) {
+        project.id = `submission-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        persistWorkspace();
+      }
+      if (hasProjectBeenUploadedToTeam(project, [team])) {
+        showToast(`This project is already shared with ${team.name}.`);
+        return;
+      }
+      const uploadKey = `${teamId}:${project.id}`;
+      if (activeTeamProjectUploads.has(uploadKey)) {
+        showToast(`This project is already being uploaded to ${team.name}.`);
+        return;
+      }
+      activeTeamProjectUploads.add(uploadKey);
+      try {
+        await saveExistingProjectToTeam(project, teamId);
+      } finally {
+        activeTeamProjectUploads.delete(uploadKey);
+      }
+    }
+
+    async function saveExistingProjectToTeam(project, teamId) {
+      let team = findTeam(teamId);
+      if (!team) {
+        showToast("This team is no longer available.");
+        return;
+      }
+      const sourceSnapshot = projectSharingSnapshot(project);
+      const existingTeamProject = (team.projects || []).find(item => item.sharedFromProjectId === project.id);
+      if (existingTeamProject && (existingTeamProject.sharedProjectSnapshot || projectSharingSnapshot(existingTeamProject)) === sourceSnapshot) {
+        showToast(`This project is already shared with ${team.name}.`);
+        return;
+      }
+      const teamProjectId = `team-project-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let sharedFileName = "";
+      const cleanupTeamFileCopy = async () => {
+        if (!sharedFileName) return true;
+        try {
+          await deleteSubmissionFiles([teamProjectId]);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      if (project.fileName) {
+        if (!project.id) {
+          showToast("The project file is unavailable. Attach it again before sharing.");
+          return;
+        }
+        try {
+          const stored = await readSubmissionFile(project.id);
+          if (!stored?.file) {
+            showToast("The project file is unavailable. Attach it again before sharing.");
+            return;
+          }
+          const file = stored.file instanceof File ? stored.file : new File([stored.file], stored.name || project.fileName, { type: stored.type || stored.file.type || "application/octet-stream" });
+          await saveSubmissionFile(teamProjectId, file);
+          sharedFileName = stored.name || project.fileName;
+        } catch {
+          showToast("The project file could not be copied for the team.");
+          return;
+        }
+      }
+
+      const teams = getTeams();
+      team = findTeam(teamId, teams);
+      if (!team || team.ownerEmail !== state.account.email || !teamMembers(team).some(member => member.email === state.account.email)) {
+        const cleaned = await cleanupTeamFileCopy();
+        showToast(cleaned ? "This team is no longer available." : "This team is unavailable and the copied project file could not be cleaned up.");
+        return;
+      }
+      team.projects = Array.isArray(team.projects) ? team.projects : [];
+      const currentSharedProject = team.projects.find(item => item.sharedFromProjectId === project.id);
+      if (currentSharedProject && (currentSharedProject.sharedProjectSnapshot || projectSharingSnapshot(currentSharedProject)) === sourceSnapshot) {
+        const cleaned = await cleanupTeamFileCopy();
+        showToast(cleaned ? `This project is already shared with ${team.name}.` : "The project is already shared, and the extra file copy could not be cleaned up.");
+        return;
+      }
+      const submittedAt = new Date().toISOString();
+      const sharedProject = {
+        ...project,
+        id: teamProjectId,
+        type: "Project submission",
+        date: `Submitted ${new Date(submittedAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`,
+        submittedAt,
+        fileName: sharedFileName,
+        submittedBy: state.account.email,
+        sharedFromProjectId: project.id || "",
+        sharedProjectSnapshot: sourceSnapshot
+      };
+      if (currentSharedProject) {
+        team.projects = team.projects.filter(item => item !== currentSharedProject);
+        sharedProject.sharedFromProjectId = currentSharedProject.sharedFromProjectId || project.id;
+      }
+      team.projects.unshift(sharedProject);
+      try {
+        saveTeams(teams);
+      } catch {
+        const cleaned = await cleanupTeamFileCopy();
+        showToast(cleaned ? "The project could not be shared with the team. Please try again." : "The project could not be shared, and its copied file could not be cleaned up.");
+        return;
+      }
+      if (currentSharedProject?.id && currentSharedProject.fileName) {
+        try {
+          await deleteSubmissionFiles([currentSharedProject.id]);
+        } catch {
+          closeModal();
+          render();
+          showToast(`Project uploaded to ${team.name}, but the previous attachment could not be removed.`);
+          return;
+        }
+      }
+      closeModal();
+      render();
+      showToast(`Project uploaded to ${team.name}.`);
+    }
+
     function attachProjectFileModal(index) {
       const project = state.projects[index];
       if (!project) return;
-      showModal("Attach project file", `Add or replace the file for “${escapeHtml(project.name)}”.`, `<label class="field-label" for="replacementFile">Choose project file</label><input class="field" id="replacementFile" name="file" type="file" required><p class="project-meta" style="margin-top:7px">Files up to 25 MB. Your teacher can open or download this attachment.</p>`, "Save attachment", async formData => {
+      showModal("Upload a file", `Attach a file to “${escapeHtml(project.name)}”.`, `<label class="field-label" for="replacementFile">Choose project file</label><input class="field" id="replacementFile" name="file" type="file" required><p class="project-meta" style="margin-top:7px">Files up to 25 MB. Your teacher and team members can open or download this attachment.</p>`, "Submit attachment", async formData => {
         const file = formData.get("file");
         if (!file?.name) { showToast("Choose a file to continue."); return; }
         if (file.size > 25 * 1024 * 1024) { showToast("Files must be 25 MB or smaller."); return; }
@@ -1472,18 +2170,54 @@
         catch { showToast("The file could not be stored. Please try another file."); return; }
         project.id = projectId;
         project.fileName = file.name;
+        project.attachmentVersion = (project.attachmentVersion || 0) + 1;
         persistWorkspace();
         closeModal();
         render();
-        showToast("Project attachment saved for your teacher.");
+        showToast("Attachment submitted. Upload the project to your team again to share this update.");
       });
+    }
+
+    function editPersonalProjectModal(index) {
+      const project = state.projects[index];
+      if (!project) return;
+      showModal("Edit project", "Update the project details before sharing the latest version with your team.", `<label class="field-label" for="personalProjectName">Project name</label><input class="field" id="personalProjectName" name="name" maxlength="120" value="${escapeHtml(project.name || "")}" required><label class="field-label" for="personalProjectDescription">Description</label><textarea class="textarea" id="personalProjectDescription" name="description" maxlength="2000" placeholder="Describe this project">${escapeHtml(project.description || "")}</textarea>`, "Save changes", formData => {
+        const name = String(formData.get("name") || "").trim();
+        if (!name) {
+          showToast("Enter a project name.");
+          return;
+        }
+        project.name = name;
+        project.description = String(formData.get("description") || "").trim();
+        persistWorkspace();
+        closeModal();
+        render();
+        showToast("Project details updated. Upload the project to your team again to share the changes.");
+      });
+    }
+
+    async function removePersonalProjectFile(index) {
+      const project = state.projects[index];
+      if (!project || !project.id || !project.fileName) return;
+      try {
+        await deleteSubmissionFiles([project.id]);
+      } catch {
+        showToast("Could not remove the project file.");
+        return;
+      }
+      project.fileName = "";
+      project.attachmentVersion = (project.attachmentVersion || 0) + 1;
+      persistWorkspace();
+      render();
+      showToast("Project file removed. Upload the project to your team again to share this change.");
     }
 
     function questionModal() {
       showModal("Ask your teacher", "Your question will be shared with your teacher.", `<label class="field-label" for="questionSubject">What’s your question about?</label><input class="field" id="questionSubject" name="subject" placeholder="A short summary" required><label class="field-label" for="questionDetails">Add some details</label><textarea class="textarea" id="questionDetails" name="details" placeholder="Tell your teacher what you need help with..." required></textarea>`, "Send question", formData => {
         const subject = String(formData.get("subject") || "").trim();
         if (!subject) return;
-        state.queries.unshift({ title: subject, meta: "Asked just now · Awaiting teacher reply", answered: false });
+        const details = String(formData.get("details") || "").trim();
+        state.queries.unshift({ title: subject, details, submittedAt: new Date().toISOString(), meta: "Awaiting teacher reply", answered: false });
         persistWorkspace();
         closeModal();
         render();
@@ -1518,17 +2252,83 @@
       });
     }
 
-    function replyModal(index) {
-      const query = state.queries[index];
+    function openQueryModal(index, ownerEmail = "") {
+      const workspace = ownerEmail ? JSON.parse(localStorage.getItem(`ideaWorkspace:${ownerEmail}`) || "null") : null;
+      const query = ownerEmail ? workspace?.queries?.[index] : state.queries[index];
       if (!query) return;
-      showModal(query.answered ? "Your response" : "Reply to student", query.title, `<label class="field-label" for="teacherReply">Teacher response</label><textarea class="textarea" id="teacherReply" name="reply" placeholder="Write a helpful response..." required>${query.response ? escapeHtml(query.response) : ""}</textarea>`, query.answered ? "Update response" : "Send response", formData => {
-        query.response = String(formData.get("reply") || "").trim();
-        query.answered = true;
-        query.meta = "Answered just now · Teacher";
-        persistWorkspace();
+      const teacherView = state.role === "teacher" && Boolean(ownerEmail);
+      const studentName = teacherView ? getAccountRecords()[ownerEmail]?.name || "Student" : "";
+      const body = `<div class="query-detail-content"><h3 class="query-detail-label">Question</h3><div class="query-detail-text">${escapeHtml(query.title)}</div><h3 class="query-detail-label">Details</h3><div class="query-detail-text">${escapeHtml(query.details || "No additional details provided.")}</div>${teacherView ? `<label class="field-label" for="teacherReply">Your answer</label><textarea class="textarea" id="teacherReply" name="reply" placeholder="Write a helpful response..." required>${query.response ? escapeHtml(query.response) : ""}</textarea>` : `<h3 class="query-detail-label">Teacher answer</h3><div class="query-detail-text answer">${query.response ? escapeHtml(query.response) : "Your teacher has not replied yet."}</div>`}</div>`;
+      showModal("Question details", teacherView ? `Question from ${studentName}` : query.meta || "Your question", body, teacherView ? (query.answered ? "Save answer" : "Send answer") : "Close", formData => {
+        if (!teacherView) {
+          closeModal();
+          return;
+        }
+        const response = String(formData.get("reply") || "").trim();
+        const currentWorkspace = JSON.parse(localStorage.getItem(`ideaWorkspace:${ownerEmail}`) || "null");
+        const currentQuery = currentWorkspace?.queries?.[index];
+        if (!currentQuery) {
+          showToast("This student question is no longer available.");
+          closeModal();
+          render();
+          return;
+        }
+        currentQuery.response = response;
+        currentQuery.answered = true;
+        currentQuery.answeredAt = new Date().toISOString();
+        currentQuery.answeredBy = state.account.name;
+        currentQuery.meta = "Answered";
+        localStorage.setItem(`ideaWorkspace:${ownerEmail}`, JSON.stringify(currentWorkspace));
         closeModal();
         render();
         showToast("Your response was sent to the student.");
+      });
+    }
+
+    function editStudentQuery(index) {
+      if (state.role !== "student" || !state.queries[index]) return;
+      const query = state.queries[index];
+      showModal("Edit your question", "Update the question you sent to your teacher.", `<label class="field-label" for="editQuestionSubject">Question subject</label><input class="field" id="editQuestionSubject" name="subject" value="${escapeHtml(query.title)}" required><label class="field-label" for="editQuestionDetails">Question details</label><textarea class="textarea" id="editQuestionDetails" name="details" required>${escapeHtml(query.details || "")}</textarea>`, "Save changes", formData => {
+        const subject = String(formData.get("subject") || "").trim();
+        const details = String(formData.get("details") || "").trim();
+        if (!subject || !details) {
+          showToast("Enter a subject and question details.");
+          return;
+        }
+        const hadAnswer = query.answered;
+        query.title = subject;
+        query.details = details;
+        if (hadAnswer) {
+          query.response = "";
+          query.answered = false;
+          delete query.answeredAt;
+          delete query.answeredBy;
+          query.meta = "Awaiting teacher reply";
+        }
+        persistWorkspace();
+        closeModal();
+        render();
+        showToast(hadAnswer ? "Question updated. The teacher can reply to the updated question." : "Question updated.");
+      });
+      const subjectInput = document.getElementById("editQuestionSubject");
+      subjectInput.focus();
+      subjectInput.setSelectionRange(subjectInput.value.length, subjectInput.value.length);
+    }
+
+    function deleteStudentQuery(index) {
+      if (state.role !== "student" || !state.queries[index]) return;
+      showModal("Delete question?", "This will permanently remove your question and its reply.", `<p class="query-detail-text">${escapeHtml(state.queries[index].title)}</p>`, "Delete question", () => {
+        if (!state.queries[index]) {
+          closeModal();
+          render();
+          showToast("This question is no longer available.");
+          return;
+        }
+        state.queries.splice(index, 1);
+        persistWorkspace();
+        closeModal();
+        render();
+        showToast("Question deleted.");
       });
     }
 
@@ -1544,6 +2344,7 @@
       if (actionButton) {
         const action = actionButton.dataset.action;
         if (action === "upload") uploadModal();
+        else if (action === "create-topic-project") createTopicProjectModal();
         else if (action === "create-team") createTeamModal();
         else if (action === "ask-question") questionModal();
         else if (action === "review-all") { state.page = "projects"; render(); }
@@ -1571,6 +2372,26 @@
         else if (action === "notifications") openNotificationsModal();
         return;
       }
+      const editQueryButton = event.target.closest("[data-edit-query]");
+      if (editQueryButton) {
+        editStudentQuery(Number(editQueryButton.dataset.editQuery));
+        return;
+      }
+      const deleteQueryButton = event.target.closest("[data-delete-query]");
+      if (deleteQueryButton) {
+        deleteStudentQuery(Number(deleteQueryButton.dataset.deleteQuery));
+        return;
+      }
+      const editStudentAnswerButton = event.target.closest("[data-edit-student-answer]");
+      if (editStudentAnswerButton) {
+        openQueryModal(Number(editStudentAnswerButton.dataset.queryIndex), editStudentAnswerButton.dataset.editStudentAnswer);
+        return;
+      }
+      const topicRow = event.target.closest("[data-topic-select]");
+      if (topicRow) {
+        selectDataTopic(topicRow);
+        return;
+      }
       const deleteProjectButton = event.target.closest("[data-delete-project]");
       if (deleteProjectButton) {
         const index = Number(deleteProjectButton.dataset.deleteProject);
@@ -1581,11 +2402,12 @@
       const deleteTeamProjectButton = event.target.closest("[data-delete-team-project]");
       if (deleteTeamProjectButton) {
         const { deleteTeamProject: teamId, projectId, projectIndex } = deleteTeamProjectButton.dataset;
-        const project = findTeam(teamId)?.projects?.[Number(projectIndex)];
+        const projects = findTeam(teamId)?.projects || [];
+        const project = projectId ? projects.find(item => item.id === projectId) : projects[Number(projectIndex)];
         if (project) confirmProjectDeletion(project.name, () => deleteTeamProject(teamId, projectId, Number(projectIndex)));
         return;
       }
-      const progressButton = event.target.closest("[data-personal-project-progress], [data-team-project-progress]");
+      const progressButton = event.target.closest("button[data-personal-project-progress], [data-team-project-progress]");
       if (progressButton) { updateProjectProgress(progressButton); return; }
       const reviewButton = event.target.closest("[data-review]");
       if (reviewButton) { reviewModal(Number(reviewButton.dataset.review)); return; }
@@ -1609,6 +2431,14 @@
       }
       const uploadTeamProjectButton = event.target.closest("[data-upload-team-project]");
       if (uploadTeamProjectButton) { uploadTeamProjectModal(uploadTeamProjectButton.dataset.uploadTeamProject); return; }
+      const selectTeamUploadFlowButton = event.target.closest("[data-select-team-upload-flow]");
+      if (selectTeamUploadFlowButton) { closeModal(); selectTeamForUploadModal(); return; }
+      const goToTeamsButton = event.target.closest("[data-go-to-teams]");
+      if (goToTeamsButton) { closeModal(); state.page = "teams"; render(); return; }
+      const selectTeamUploadButton = event.target.closest("[data-select-team-upload]");
+      if (selectTeamUploadButton) { closeModal(); uploadTeamProjectModal(selectTeamUploadButton.dataset.selectTeamUpload); return; }
+      const selectPersonalUploadButton = event.target.closest("[data-select-personal-upload]");
+      if (selectPersonalUploadButton) { closeModal(); personalUploadModal(); return; }
       const acceptTeamInviteButton = event.target.closest("[data-accept-team-invite]");
       if (acceptTeamInviteButton) { updateTeamInvitation(acceptTeamInviteButton.dataset.acceptTeamInvite, true); return; }
       const declineTeamInviteButton = event.target.closest("[data-decline-team-invite]");
@@ -1627,6 +2457,22 @@
       }
       const attachFileButton = event.target.closest("[data-attach-file]");
       if (attachFileButton) { attachProjectFileModal(Number(attachFileButton.dataset.attachFile)); return; }
+      const editPersonalProjectButton = event.target.closest("[data-edit-personal-project]");
+      if (editPersonalProjectButton) { editPersonalProjectModal(Number(editPersonalProjectButton.dataset.editPersonalProject)); return; }
+      const removePersonalFileButton = event.target.closest("[data-remove-personal-file]");
+      if (removePersonalFileButton) { removePersonalProjectFile(Number(removePersonalFileButton.dataset.removePersonalFile)); return; }
+      const openPersonalFileButton = event.target.closest("[data-open-personal-file]");
+      if (openPersonalFileButton) { openPersonalProjectFile(Number(openPersonalFileButton.dataset.openPersonalFile)); return; }
+      const downloadPersonalFileButton = event.target.closest("[data-download-personal-file]");
+      if (downloadPersonalFileButton) { openPersonalProjectFile(Number(downloadPersonalFileButton.dataset.downloadPersonalFile), true); return; }
+      const shareProjectButton = event.target.closest("[data-share-project-to-team]");
+      if (shareProjectButton) { uploadExistingProjectToTeam(Number(shareProjectButton.dataset.shareProjectToTeam)); return; }
+      const shareProjectTeamButton = event.target.closest("[data-share-project-team]");
+      if (shareProjectTeamButton) {
+        closeModal();
+        shareExistingProjectWithTeam(Number(shareProjectTeamButton.dataset.shareProjectIndex), shareProjectTeamButton.dataset.shareProjectTeam);
+        return;
+      }
       const teamProjectToggle = event.target.closest("[data-expand-team-project]");
       if (teamProjectToggle) { toggleProjectDetails(teamProjectToggle); return; }
       const expandProjectButton = event.target.closest("[data-expand-project]");
@@ -1636,15 +2482,60 @@
       }
       const projectCard = event.target.closest("[data-project-card]");
       if (projectCard && !event.target.closest("button")) toggleProjectDetails(projectCard.querySelector("[data-expand-project]"));
-      const replyButton = event.target.closest("[data-reply]");
-      if (replyButton) { replyModal(Number(replyButton.dataset.reply)); }
+      const teamCard = event.target.closest("[data-team-description-toggle]");
+      if (teamCard && !event.target.closest("button, input, select, textarea, a")) {
+        const expanded = teamCard.getAttribute("aria-expanded") === "true";
+        teamCard.setAttribute("aria-expanded", String(!expanded));
+        teamCard.querySelector(".team-description-box")?.classList.toggle("hidden", expanded);
+      }
+      const studentQuery = event.target.closest("[data-open-student-query]");
+      if (studentQuery) {
+        openQueryModal(Number(studentQuery.dataset.queryIndex), studentQuery.dataset.openStudentQuery);
+        return;
+      }
+      const ownQuery = event.target.closest("[data-open-query-index]");
+      if (ownQuery) {
+        openQueryModal(Number(ownQuery.dataset.openQueryIndex));
+      }
+    });
+    document.addEventListener("change", event => {
+      const progressSelect = event.target.closest("select[data-personal-project-progress]");
+      if (progressSelect) updateProjectProgress(progressSelect);
+      const attachmentInput = event.target.closest("input[name='attachment']");
+      if (attachmentInput) {
+        const file = attachmentInput.files && attachmentInput.files[0];
+        const nameNode = attachmentInput.closest("label")?.querySelector("#chatAttachmentName");
+        if (nameNode) nameNode.textContent = file ? file.name : "No file selected";
+      }
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target.closest("button")) return;
+      const topicRow = event.target.closest("[data-topic-select]");
+      if (topicRow) {
+        event.preventDefault();
+        selectDataTopic(topicRow);
+        return;
+      }
+      const studentQuery = event.target.closest("[data-open-student-query]");
+      if (studentQuery) {
+        event.preventDefault();
+        openQueryModal(Number(studentQuery.dataset.queryIndex), studentQuery.dataset.openStudentQuery);
+        return;
+      }
+      const ownQuery = event.target.closest("[data-open-query-index]");
+      if (ownQuery) {
+        event.preventDefault();
+        openQueryModal(Number(ownQuery.dataset.openQueryIndex));
+      }
     });
     document.addEventListener("submit", event => {
       const chatForm = event.target.closest("[data-chat-form]");
       if (!chatForm) return;
       event.preventDefault();
       const formData = new FormData(chatForm);
-      sendChatMessage(chatForm.dataset.chatKind, chatForm.dataset.chatTarget, formData.get("message"));
+      const file = chatForm.querySelector("input[name='attachment']")?.files?.[0] || null;
+      sendChatMessage(chatForm.dataset.chatKind, chatForm.dataset.chatTarget, formData.get("message"), file);
     });
     window.addEventListener("storage", event => {
       if ((state.role === "teacher" && event.key?.startsWith("ideaWorkspace:")) || ["ideaTeams", "ideaTeamChats", "ideaDirectChats"].includes(event.key)) render();
@@ -1673,10 +2564,14 @@
       });
     }
     async function saveSubmissionFile(id, file) {
+      return saveSubmissionFiles([{ id, file }]);
+    }
+    async function saveSubmissionFiles(entries) {
       const db = await openFileDatabase();
       return new Promise((resolve, reject) => {
         const transaction = db.transaction("files", "readwrite");
-        transaction.objectStore("files").put({ id, file, name: file.name, type: file.type });
+        const store = transaction.objectStore("files");
+        entries.forEach(({ id, file }) => store.put({ id, file, name: file.name, type: file.type }));
         transaction.oncomplete = () => { db.close(); resolve(); };
         transaction.onerror = () => { db.close(); reject(transaction.error); };
         transaction.onabort = () => { db.close(); reject(transaction.error); };
@@ -1690,6 +2585,41 @@
         request.onsuccess = () => { db.close(); resolve(request.result || null); };
         request.onerror = () => { db.close(); reject(request.error); };
       });
+    }
+    async function openPersonalProjectFile(index, download = false) {
+      const project = state.projects[index];
+      if (!project?.id || !project.fileName) {
+        showToast("This project has no attached file.");
+        return;
+      }
+      const fileTab = download ? null : window.open("about:blank", "_blank");
+      if (!download && !fileTab) {
+        showToast("Allow pop-ups to open the attached file.");
+        return;
+      }
+      try {
+        const stored = await readSubmissionFile(project.id);
+        if (!stored?.file) {
+          fileTab?.close();
+          showToast("The attached file is not available.");
+          return;
+        }
+        const fileUrl = URL.createObjectURL(stored.file);
+        if (download) {
+          const link = document.createElement("a");
+          link.href = fileUrl;
+          link.download = stored.name || project.fileName || "project-file";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+        } else {
+          fileTab.location.href = fileUrl;
+        }
+      } catch {
+        fileTab?.close();
+        showToast(download ? "Could not download the attached file." : "Could not open the attached file.");
+      }
     }
     async function openTeacherFile(index) {
       const project = getStudentSubmissions()[index];
@@ -1725,8 +2655,12 @@
       }
     }
     async function openTeamProjectFile(teamId, projectId, download = false) {
-      if (state.role !== "teacher") return;
+      if (state.role !== "teacher" && state.role !== "student") return;
       const team = findTeam(teamId);
+      if (state.role === "student" && !teamMembers(team || {}).some(member => member.email === state.account?.email)) {
+        showToast("You are not a member of this team.");
+        return;
+      }
       const project = team?.projects?.find(item => item.id === projectId);
       if (!project?.id) { showToast("This team submission has no stored attachment."); return; }
       const fileTab = download ? null : window.open("about:blank", "_blank");
@@ -1846,7 +2780,7 @@
         localStorage.setItem("ideaSession", email);
       }
       const current = accounts[email];
-      state.account = { name: current.name, email: current.email, role: current.role, ...(current.role === "teacher" ? { post: current.post || "Administrator" } : {}), department: current.department || "", section: current.section || "" };
+      state.account = { name: current.name, email: current.email, role: current.role, avatar: current.avatar || "", ...(current.role === "teacher" ? { post: current.post || "Administrator" } : {}), department: current.department || "", section: current.section || "" };
       state.role = current.role;
       state.page = "overview";
       state.activeTeamChatId = "";
